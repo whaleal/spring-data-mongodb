@@ -1473,4 +1473,20 @@ public abstract class AbstractPersonRepositoryIntegrationTests {
 		assertThat(result.getAddress()).isPresent();
 		assertThat(result.getFirstname()).contains("Carter");
 	}
+
+	/**
+	 * @see DATAMONGO-1188
+	 */
+	@Test
+	public void shouldSupportFindAndModfiyForQueryDerivation() {
+
+		List<Person> result = repository.findAndModifyByFirstname("Dave", new Update().inc("visits", 42));
+
+		assertThat(result.size()).isOne();
+		assertThat(result.get(0)).isEqualTo(dave);
+
+		Person dave = repository.findById(result.get(0).getId()).get();
+
+		assertThat(dave.visits).isEqualTo(42);
+	}
 }
