@@ -422,6 +422,8 @@ public interface PersonRepository extends MongoRepository<Person, String>, Query
 
 	List<Person> findAndModifyByFirstname(String firstname, Update update);
 
+	Person findOneAndModifyByFirstname(String firstname, Update update);
+
 	@Query("{ 'age' : null }")
 	Person findByQueryWithNullEqualityCheck();
 

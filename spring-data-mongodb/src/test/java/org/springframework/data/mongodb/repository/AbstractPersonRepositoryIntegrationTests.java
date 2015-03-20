@@ -1478,7 +1478,7 @@ public abstract class AbstractPersonRepositoryIntegrationTests {
 	 * @see DATAMONGO-1188
 	 */
 	@Test
-	public void shouldSupportFindAndModfiyForQueryDerivation() {
+	public void shouldSupportFindAndModfiyForQueryDerivationWithCollectionResult() {
 
 		List<Person> result = repository.findAndModifyByFirstname("Dave", new Update().inc("visits", 42));
 
@@ -1489,4 +1489,20 @@ public abstract class AbstractPersonRepositoryIntegrationTests {
 
 		assertThat(dave.visits).isEqualTo(42);
 	}
+
+	/**
+	 * @see DATAMONGO-1188
+	 */
+	@Test
+	public void shouldSupportFindAndModfiyForQueryDerivationWithSingleResult() {
+
+		Person result = repository.findOneAndModifyByFirstname("Dave", new Update().inc("visits", 1337));
+
+		assertThat(result).isEqualTo(dave);
+
+		Person dave = repository.findById(result.getId()).get();
+
+		assertThat(dave.visits).isEqualTo(1337);
+	}
+
 }
