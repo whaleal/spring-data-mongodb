@@ -248,7 +248,7 @@ public class ReactiveMongoTemplateTransactionTests {
 	}
 
 	@Test // DATAMONGO-1970
-	public void errorInFlowOutsideTransactionDoesNotAbortIt() {
+	public void errorInFlowOutsideTransactionDoesNotAbortIt() throws InterruptedException {
 
 		template.inTransaction().execute(action -> {
 
@@ -263,6 +263,8 @@ public class ReactiveMongoTemplateTransactionTests {
 				.as(StepVerifier::create) //
 				.expectError() //
 				.verify();
+
+		Thread.sleep(100); // give the server a little time to think.
 
 		template.count(query(where("age").exists(true)), Person.class) //
 				.as(StepVerifier::create) //
