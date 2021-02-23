@@ -22,6 +22,7 @@ import static org.springframework.data.mongodb.core.DocumentTestUtils.*;
 
 import lombok.EqualsAndHashCode;
 import lombok.RequiredArgsConstructor;
+import lombok.ToString;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -70,6 +71,7 @@ import org.springframework.data.mongodb.core.DocumentTestUtils;
 import org.springframework.data.mongodb.core.convert.DocumentAccessorUnitTests.NestedType;
 import org.springframework.data.mongodb.core.convert.DocumentAccessorUnitTests.ProjectingType;
 import org.springframework.data.mongodb.core.convert.MappingMongoConverterUnitTests.ClassWithMapUsingEnumAsKey.FooBarEnum;
+import org.springframework.data.mongodb.core.convert.MongoCustomConversions.MongoConverterConfigurationAdapter;
 import org.springframework.data.mongodb.core.geo.Sphere;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Embedded;
@@ -81,6 +83,7 @@ import org.springframework.data.mongodb.core.mapping.PersonPojoStringId;
 import org.springframework.data.mongodb.core.mapping.TextScore;
 import org.springframework.data.mongodb.core.mapping.event.AfterConvertCallback;
 import org.springframework.data.util.ClassTypeInformation;
+import org.springframework.lang.Nullable;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import com.mongodb.BasicDBList;
@@ -2898,4 +2901,62 @@ class MappingMongoConverterUnitTests {
 		}
 	}
 
+	@ToString
+	static class TypeUsingAnotherTypeWithGenericsInConstructor {
+
+		private final Wrapper<MyEnum> myEnum;
+
+		@PersistenceConstructor
+		public TypeUsingAnotherTypeWithGenericsInConstructor(Wrapper<MyEnum> myEnum) {
+			this.myEnum = myEnum;
+		}
+
+		public Wrapper<MyEnum> getMyEnum() {
+			return myEnum;
+		}
+	}
+
+	public enum MyEnum {
+		ONE, NOT_ONE
+	}
+
+	@ToString
+	static class Wrapper<T> {
+
+		final T value;
+
+		public Wrapper(T value) {
+			this.value = value;
+		}
+
+		public T getValue() {
+			return value;
+		}
+	}
+
+	@ReadingConverter
+	static class MyEnumConverter implements Converter<String, MyEnum> {
+
+		@Nullable
+		@Override
+		public MyEnum convert(String source) {
+			return source.equals("1") ? MyEnum.ONE : MyEnum.NOT_ONE;
+		}
+	}
+
+	@Test // GH-3567
+	void shouldUseConverterOnConstructor() {
+
+		converter = new MappingMongoConverter(resolver, mappingContext);
+
+		converter.setCustomConversions(new MongoCustomConversions(MongoConverterConfigurationAdapter
+				.from(Collections.singletonList(new MyEnumConverter()))));
+		converter.afterPropertiesSet();
+
+		org.bson.Document source = new org.bson.Document("myEnum", new org.bson.Document("value", "1"));
+
+		TypeUsingAnotherTypeWithGenericsInConstructor target = converter.read(TypeUsingAnotherTypeWithGenericsInConstructor.class, source);
+		assertThat(target.getMyEnum()).isNotNull();
+		assertThat(target.getMyEnum().getValue()).isEqualTo(MyEnum.ONE);
+	}
 }
