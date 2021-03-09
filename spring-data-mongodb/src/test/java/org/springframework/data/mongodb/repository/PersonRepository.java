@@ -428,4 +428,24 @@ public interface PersonRepository extends MongoRepository<Person, String>, Query
 	Person findByQueryWithNullEqualityCheck();
 
 	List<Person> findBySpiritAnimal(User user);
+
+	// @Query
+	// @Update(value = "{ $set : { firstname : '?1' }, $incr : '?2' }") <- might be an array
+
+
+
+	// @Update(pipeline = "[{ ... }]") <- pipeline updates
+
+
+	// meta annotation jpa style @Modifying
+	// @Modifying
+	// @Aggregation(pipeline = "[{ ... }])
+	// findAndModifyByFirstame(String firstname, ) <- doh please not
+
+	// findOneAndModifyByFirstnameSetLastnameIncreaseValue <-- ouch, too way to confusing
+
+	// @updateparam
+	// findAndMofifyByFirstname(String firstname, @set String lastname, @incr int value) <- micronaut style
+
+	// versioning as usual?
 }
