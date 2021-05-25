@@ -17,13 +17,9 @@ package org.springframework.data.mongodb.core;
 
 import static org.assertj.core.api.Assertions.*;
 
-import com.mongodb.MongoCommandException;
-import com.mongodb.MongoWriteException;
-import com.mongodb.WriteError;
 import org.bson.BsonDocument;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
 import org.springframework.core.NestedRuntimeException;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataAccessResourceFailureException;
@@ -31,11 +27,9 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.dao.InvalidDataAccessApiUsageException;
 import org.springframework.dao.InvalidDataAccessResourceUsageException;
-import org.springframework.dao.TransientDataAccessException;
 import org.springframework.data.mongodb.ClientSessionException;
 import org.springframework.data.mongodb.MongoTransactionException;
 import org.springframework.data.mongodb.TransientMongoDbException;
-import org.springframework.data.mongodb.TransientMongoDbTransactionException;
 import org.springframework.data.mongodb.UncategorizedMongoDbException;
 import org.springframework.lang.Nullable;
 
@@ -45,7 +39,9 @@ import com.mongodb.MongoInternalException;
 import com.mongodb.MongoSocketException;
 import com.mongodb.MongoSocketReadTimeoutException;
 import com.mongodb.MongoSocketWriteException;
+import com.mongodb.MongoWriteException;
 import com.mongodb.ServerAddress;
+import com.mongodb.WriteError;
 
 /**
  * Unit tests for {@link MongoExceptionTranslator}.
@@ -86,15 +82,13 @@ class MongoExceptionTranslatorUnitTests {
 	void translateSocketExceptionSubclasses() {
 
 		expectExceptionWithCauseMessage(
-				translator.translateExceptionIfPossible(
-						new MongoSocketWriteException("intermediate message", new ServerAddress(), new Exception(EXCEPTION_MESSAGE))
-				),
+				translator.translateExceptionIfPossible(new MongoSocketWriteException("intermediate message",
+						new ServerAddress(), new Exception(EXCEPTION_MESSAGE))),
 				DataAccessResourceFailureException.class, EXCEPTION_MESSAGE);
 
 		expectExceptionWithCauseMessage(
-				translator.translateExceptionIfPossible(
-						new MongoSocketReadTimeoutException("intermediate message", new ServerAddress(), new Exception(EXCEPTION_MESSAGE))
-				),
+				translator.translateExceptionIfPossible(new MongoSocketReadTimeoutException("intermediate message",
+						new ServerAddress(), new Exception(EXCEPTION_MESSAGE))),
 				DataAccessResourceFailureException.class, EXCEPTION_MESSAGE);
 
 	}
@@ -184,11 +178,11 @@ class MongoExceptionTranslatorUnitTests {
 		MongoException source = new MongoException(267, "PreparedTransactionInProgress");
 		source.addLabel(MongoException.TRANSIENT_TRANSACTION_ERROR_LABEL);
 
-		expectExceptionWithCauseMessage(translator.translateExceptionIfPossible(source),
-				TransientMongoDbTransactionException.class, "PreparedTransactionInProgress");
+		expectExceptionWithCauseMessage(translator.translateExceptionIfPossible(source), TransientMongoDbException.class,
+				"PreparedTransactionInProgress");
 	}
 
-	@Test  // DATAMONGO-2073
+	@Test // DATAMONGO-2073
 	public void translateMongoExceptionWithTransientLabelToTransientMongoDbException() {
 
 		MongoException exception = new MongoException(0, "");
@@ -198,7 +192,7 @@ class MongoExceptionTranslatorUnitTests {
 		expectExceptionWithCauseMessage(translatedException, TransientMongoDbException.class);
 	}
 
-	@Test  // DATAMONGO-2073
+	@Test // DATAMONGO-2073
 	public void wrapsTranslatedExceptionsWhenTransientLabelPresent() {
 
 		MongoException exception = new MongoWriteException(new WriteError(112, "WriteConflict", new BsonDocument()), null);

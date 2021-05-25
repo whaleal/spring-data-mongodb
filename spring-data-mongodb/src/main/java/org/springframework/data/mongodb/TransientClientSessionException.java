@@ -23,18 +23,9 @@ import org.springframework.lang.Nullable;
  * access failures such as reading data using an already closed session.
  *
  * @author Christoph Strobl
- * @since 2.1
+ * @since 3.3
  */
 public class TransientClientSessionException extends TransientMongoDbException {
-
-	/**
-	 * Constructor for {@link TransientClientSessionException}.
-	 *
-	 * @param msg the detail message. Must not be {@literal null}.
-	 */
-	public TransientClientSessionException(String msg) {
-		super(msg);
-	}
 
 	/**
 	 * Constructor for {@link TransientClientSessionException}.

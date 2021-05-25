@@ -21,7 +21,6 @@ import java.util.HashSet;
 import java.util.Set;
 
 import org.bson.BsonInvalidOperationException;
-
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -32,10 +31,8 @@ import org.springframework.dao.PermissionDeniedDataAccessException;
 import org.springframework.dao.TransientDataAccessException;
 import org.springframework.dao.support.PersistenceExceptionTranslator;
 import org.springframework.data.mongodb.ClientSessionException;
-import org.springframework.data.mongodb.MongoTransactionException;
 import org.springframework.data.mongodb.TransientClientSessionException;
 import org.springframework.data.mongodb.TransientMongoDbException;
-import org.springframework.data.mongodb.TransientMongoDbTransactionException;
 import org.springframework.data.mongodb.UncategorizedMongoDbException;
 import org.springframework.data.mongodb.util.MongoDbErrorCodes;
 import org.springframework.lang.Nullable;
@@ -43,7 +40,6 @@ import org.springframework.util.ClassUtils;
 
 import com.mongodb.MongoBulkWriteException;
 import com.mongodb.MongoException;
-import com.mongodb.MongoServerException;
 import com.mongodb.MongoSocketException;
 import com.mongodb.bulk.BulkWriteError;
 
@@ -87,7 +83,8 @@ public class MongoExceptionTranslator implements PersistenceExceptionTranslator 
 		// Translated exceptions that per se are not be recoverable (eg. WriteConflicts), might still be transient inside a
 		// transaction. Let's wrap those.
 		return (isTransientFailure(ex) && !(translatedException instanceof TransientDataAccessException))
-				? new TransientMongoDbException(ex.getMessage(), translatedException) : translatedException;
+				? new TransientMongoDbException(ex.getMessage(), translatedException)
+				: translatedException;
 
 	}
 
@@ -120,13 +117,13 @@ public class MongoExceptionTranslator implements PersistenceExceptionTranslator 
 
 		if (DATA_INTEGRITY_EXCEPTIONS.contains(exception)) {
 
-			if (ex instanceof MongoServerException) {
-				if (((MongoServerException) ex).getCode() == 11000) {
+			if (ex instanceof MongoException) {
+				if (MongoDbErrorCodes.isDataDuplicateKeyError(ex)) {
 					return new DuplicateKeyException(ex.getMessage(), ex);
 				}
 				if (ex instanceof MongoBulkWriteException) {
-					for (BulkWriteError x : ((MongoBulkWriteException) ex).getWriteErrors()) {
-						if (x.getCode() == 11000) {
+					for (BulkWriteError writeError : ((MongoBulkWriteException) ex).getWriteErrors()) {
+						if (MongoDbErrorCodes.isDuplicateKeyCode(writeError.getCode())) {
 							return new DuplicateKeyException(ex.getMessage(), ex);
 						}
 					}
@@ -140,24 +137,30 @@ public class MongoExceptionTranslator implements PersistenceExceptionTranslator 
 		if (ex instanceof MongoException) {
 
 			MongoException mongoException = (MongoException) ex;
-			int code = mongoException.getCode();
-			boolean isTransient = isTransientFailure(mongoException);
 
-			if (MongoDbErrorCodes.isDuplicateKeyCode(code)) {
+			if (MongoDbErrorCodes.isDuplicateKeyError(mongoException)) {
 				return new DuplicateKeyException(ex.getMessage(), ex);
-			} else if (MongoDbErrorCodes.isDataAccessResourceFailureCode(code)) {
+			}
+			if (MongoDbErrorCodes.isDataAccessResourceError(mongoException)) {
 				return new DataAccessResourceFailureException(ex.getMessage(), ex);
-			} else if (MongoDbErrorCodes.isInvalidDataAccessApiUsageCode(code) || code == 10003 || code == 12001
-					|| code == 12010 || code == 12011 || code == 12012) {
-				return new InvalidDataAccessApiUsageException(ex.getMessage(), ex);
-			} else if (MongoDbErrorCodes.isPermissionDeniedCode(code)) {
+			}
+
+			{
+				int code = mongoException.getCode();
+				if (MongoDbErrorCodes.isInvalidDataAccessApiUsageError(mongoException) || code == 12001 || code == 12010
+						|| code == 12011 || code == 12012) {
+					return new InvalidDataAccessApiUsageException(ex.getMessage(), ex);
+				}
+			}
+			if (MongoDbErrorCodes.isPermissionDeniedError(mongoException)) {
 				return new PermissionDeniedDataAccessException(ex.getMessage(), ex);
-			} else if (MongoDbErrorCodes.isClientSessionFailureCode(code)) {
-				return isTransient ? new TransientClientSessionException(ex.getMessage(), ex)
+			}
+			if (MongoDbErrorCodes.isDataIntegrityViolationError(mongoException)) {
+				return new DataIntegrityViolationException(mongoException.getMessage(), mongoException);
+			}
+			if (MongoDbErrorCodes.isClientSessionFailure(mongoException)) {
+				return isTransientFailure(mongoException) ? new TransientClientSessionException(ex.getMessage(), ex)
 						: new ClientSessionException(ex.getMessage(), ex);
-			} else if (MongoDbErrorCodes.isTransactionFailureCode(code)) {
-				return isTransient ? new TransientMongoDbTransactionException(ex.getMessage(), ex)
-						: new MongoTransactionException(ex.getMessage(), ex);
 			}
 
 			return new UncategorizedMongoDbException(ex.getMessage(), ex);
@@ -186,7 +189,7 @@ public class MongoExceptionTranslator implements PersistenceExceptionTranslator 
 	 * @return {@literal true} if the given {@link Exception} is a {@link MongoException} holding one of the transient
 	 *         exception error labels.
 	 * @see MongoException#hasErrorLabel(String)
-	 * @since 2.1
+	 * @since 3.3
 	 */
 	public static boolean isTransientFailure(Exception e) {
 

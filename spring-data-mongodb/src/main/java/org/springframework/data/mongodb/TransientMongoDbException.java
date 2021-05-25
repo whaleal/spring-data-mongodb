@@ -24,18 +24,9 @@ import org.springframework.lang.Nullable;
  * specific labels}.
  *
  * @author Christoph Strobl
- * @since 2.1
+ * @since 3.3
  */
 public class TransientMongoDbException extends TransientDataAccessException {
-
-	/**
-	 * Constructor for {@link TransientMongoDbException}.
-	 *
-	 * @param msg the detail message. Must not be {@literal null}.
-	 */
-	public TransientMongoDbException(String msg) {
-		super(msg);
-	}
 
 	/**
 	 * Constructor for {@link TransientMongoDbException}.
