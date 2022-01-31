@@ -17,6 +17,7 @@ package org.springframework.data.mongodb.repository;
 
 import static java.util.Arrays.*;
 import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assumptions.*;
 import static org.springframework.data.geo.Metrics.*;
 
 import java.util.ArrayList;
@@ -376,7 +377,7 @@ public abstract class AbstractPersonRepositoryIntegrationTests {
 	@Test
 	void rejectsDuplicateEmailAddressOnSave() {
 
-		assertThat(dave.getEmail()).isEqualTo("dave@dmband.com");
+		assumeThat(repository.findById(dave.getId()).map(Person::getEmail)).contains("dave@dmband.com");
 
 		Person daveSyer = new Person("Dave", "Syer");
 		assertThat(daveSyer.getEmail()).isEqualTo("dave@dmband.com");
@@ -1441,7 +1442,8 @@ public abstract class AbstractPersonRepositoryIntegrationTests {
 	@Test // GH-3633
 	void annotatedQueryWithNullEqualityCheckShouldWork() {
 
-		operations.updateFirst(Query.query(Criteria.where("id").is(dave.getId())), Update.update("age", null), Person.class);
+		operations.updateFirst(Query.query(Criteria.where("id").is(dave.getId())), Update.update("age", null),
+				Person.class);
 
 		Person byQueryWithNullEqualityCheck = repository.findByQueryWithNullEqualityCheck();
 		assertThat(byQueryWithNullEqualityCheck.getId()).isEqualTo(dave.getId());
@@ -1462,7 +1464,7 @@ public abstract class AbstractPersonRepositoryIntegrationTests {
 		assertThat(result).map(Person::getId).containsExactly(josh.getId());
 	}
 
-	@Test //GH-3656
+	@Test // GH-3656
 	void resultProjectionWithOptionalIsExcecutedCorrectly() {
 
 		carter.setAddress(new Address("batman", "robin", "gotham"));
@@ -1478,12 +1480,11 @@ public abstract class AbstractPersonRepositoryIntegrationTests {
 	@Test // GH-2107
 	public void shouldSupportFindAndModifyForQueryDerivationWithCollectionResult() {
 
-		List<Person> result = repository.findAndModifyByFirstname("Dave", new Update().inc("visits", 42));
+		Person result = repository.findAndModifyByFirstname("Dave", new Update().inc("visits", 42));
 
-		assertThat(result.size()).isOne();
-		assertThat(result.get(0)).isEqualTo(dave);
+		assertThat(result).isEqualTo(dave);
 
-		Person dave = repository.findById(result.get(0).getId()).get();
+		Person dave = repository.findById(result.getId()).get();
 
 		assertThat(dave.visits).isEqualTo(42);
 	}
@@ -1491,12 +1492,12 @@ public abstract class AbstractPersonRepositoryIntegrationTests {
 	@Test // GH-2107
 	public void shouldSupportFindAndModifyForQueryDerivationWithPagedLookup() {
 
-		List<Person> result = repository.findAndModifyByLastname("Matthews", new Update().inc("visits", 42), PageRequest.of(0, 1, Sort.by(Direction.DESC, "firstname")));
+		Person result = repository.findAndModifyByLastname("Matthews", new Update().inc("visits", 42),
+				Sort.by(Direction.DESC, "firstname"));
 
-		assertThat(result.size()).isOne();
-		assertThat(result.get(0)).isEqualTo(oliver);
+		assertThat(result).isEqualTo(oliver);
 
-		Person oliver = repository.findById(result.get(0).getId()).get();
+		Person oliver = repository.findById(result.getId()).get();
 		assertThat(oliver.visits).isEqualTo(42);
 
 		assertThat(repository.findById(dave.id).get().visits).isZero();
@@ -1505,12 +1506,12 @@ public abstract class AbstractPersonRepositoryIntegrationTests {
 	@Test // GH-2107
 	public void shouldSupportFindAndModifyWithAggregationUpdate() {
 
-		List<Person> result = repository.findAndModifyByFirstname("Dave", AggregationUpdate.newUpdate().set("visits").toValue(42));
+		Person result = repository.findAndModifyByFirstname("Dave",
+				AggregationUpdate.newUpdate().set("visits").toValue(42));
 
-		assertThat(result.size()).isOne();
-		assertThat(result.get(0)).isEqualTo(dave);
+		assertThat(result).isEqualTo(dave);
 
-		Person dave = repository.findById(result.get(0).getId()).get();
+		Person dave = repository.findById(result.getId()).get();
 
 		assertThat(dave.visits).isEqualTo(42);
 	}
@@ -1520,11 +1521,23 @@ public abstract class AbstractPersonRepositoryIntegrationTests {
 
 		Person result = repository.findOneAndModifyByFirstname("Dave", new Update().inc("visits", 1337));
 
-		assertThat(result).isEqualTo(dave);
+		assertThat(result).isEqualTo(dave); // still unmodified
 
 		Person dave = repository.findById(result.getId()).get();
 
 		assertThat(dave.visits).isEqualTo(1337);
 	}
 
+	@Test // GH-2107
+	void shouldAllowToUpdateAllElements() {
+		assertThat(repository.findAndUpdateAllByLastname("Matthews", new Update().inc("visits", 1337))).isEqualTo(2);
+	}
+
+	@Test // GH-2107
+	void shouldAllowToUpdateAllElementsWithVoidReturn() {
+
+		repository.findAndUpdateByLastname("Matthews", new Update().inc("visits", 1337));
+
+		assertThat(repository.findByLastname("Matthews")).extracting(Person::getVisits).allMatch(visits -> visits == 1337);
+	}
 }

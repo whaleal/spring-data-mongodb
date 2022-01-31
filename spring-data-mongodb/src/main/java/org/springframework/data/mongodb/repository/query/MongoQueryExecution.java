@@ -17,6 +17,7 @@ package org.springframework.data.mongodb.repository.query;
 
 import java.util.List;
 
+import org.springframework.dao.InvalidDataAccessApiUsageException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Range;
@@ -30,9 +31,12 @@ import org.springframework.data.geo.Point;
 import org.springframework.data.mongodb.core.ExecutableFindOperation;
 import org.springframework.data.mongodb.core.ExecutableFindOperation.FindWithQuery;
 import org.springframework.data.mongodb.core.ExecutableFindOperation.TerminatingFind;
+import org.springframework.data.mongodb.core.ExecutableUpdateOperation.ExecutableUpdate;
+import org.springframework.data.mongodb.core.ExecutableUpdateOperation.TerminatingUpdate;
 import org.springframework.data.mongodb.core.MongoOperations;
 import org.springframework.data.mongodb.core.query.NearQuery;
 import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.UpdateDefinition;
 import org.springframework.data.repository.support.PageableExecutionUtils;
 import org.springframework.data.util.TypeInformation;
 import org.springframework.util.Assert;
@@ -296,6 +300,56 @@ interface MongoQueryExecution {
 
 			DeleteResult writeResult = operations.remove(query, type, collectionName);
 			return writeResult.wasAcknowledged() ? writeResult.getDeletedCount() : 0L;
+		}
+	}
+
+	/**
+	 * {@link MongoQueryExecution} updating documents matching the query.
+	 * <p>
+	 * Depending on the result type (numeric value | {@literal void}) an {@link MongoOperations#updateMulti(Query, UpdateDefinition, Class)} is performed. 
+	 * In case the {@link AbstractMongoQuery query} is {@link AbstractMongoQuery#isLimiting()} the operation will call {@link MongoOperations#updateFirst(Query, UpdateDefinition, Class)}.
+	 * <p>
+	 * For methods returning a domain specific type {@link MongoOperations#findAndModify(Query, UpdateDefinition, Class)}
+	 * 
+	 * @author Christph Strobl
+	 * @since
+	 */
+	final class UpdateExecution implements MongoQueryExecution {
+
+		private final ExecutableUpdate<?> updateOps;
+		private final MongoQueryMethod method;
+		private final MongoParameterAccessor accessor;
+		private boolean limiting;
+
+		UpdateExecution(ExecutableUpdate<?> updateOps, MongoQueryMethod method, MongoParameterAccessor accessor,
+				boolean limiting) {
+
+			this.updateOps = updateOps;
+			this.method = method;
+			this.accessor = accessor;
+			this.limiting = limiting;
+		}
+
+		@Override
+		public Object execute(Query query) {
+
+			if (method.isCollectionQuery() || method.isSliceQuery() || method.isPageQuery()) {
+				throw new InvalidDataAccessApiUsageException(
+						"Derived update may return a numeric value (the number of updated documents), void or a single entity.");
+			}
+
+			boolean isUpdateCountReturnType = ClassUtils.isAssignable(Number.class, method.getReturnedObjectType());
+			boolean isVoidReturnType = ClassUtils.isAssignable(Void.class, method.getReturnedObjectType());
+
+			TerminatingUpdate<?> update = updateOps.matching(query.with(accessor.getSort())).apply(accessor.getUpdate());
+
+			if (isUpdateCountReturnType || isVoidReturnType) {
+				if (limiting) {
+					return update.first().getModifiedCount();
+				}
+				return update.all().getModifiedCount();
+			}
+			return update.findAndModifyValue();
 		}
 	}
 }

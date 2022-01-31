@@ -421,9 +421,13 @@ public interface PersonRepository extends MongoRepository<Person, String>, Query
 
 	List<Person> findByUnwrappedUser(User user);
 
-	List<Person> findAndModifyByFirstname(String firstname, UpdateDefinition update);
+	int findAndUpdateAllByLastname(String lastname, Update update);
 
-	List<Person> findAndModifyByLastname(String lastname, Update update, Pageable page);
+	void findAndUpdateByLastname(String lastname, Update update);
+
+	Person findAndModifyByFirstname(String firstname, UpdateDefinition update);
+
+	Person findAndModifyByLastname(String lastname, Update update, Sort sort);
 
 	Person findOneAndModifyByFirstname(String firstname, Update update);
 

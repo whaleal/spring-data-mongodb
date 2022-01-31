@@ -21,9 +21,8 @@ import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.List;
 
-import org.assertj.core.api.Assertions;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.geo.Distance;
 import org.springframework.data.geo.GeoPage;
@@ -31,7 +30,10 @@ import org.springframework.data.geo.GeoResult;
 import org.springframework.data.geo.GeoResults;
 import org.springframework.data.geo.Point;
 import org.springframework.data.mongodb.core.User;
+import org.springframework.data.mongodb.core.aggregation.AggregationUpdate;
 import org.springframework.data.mongodb.core.mapping.MongoMappingContext;
+import org.springframework.data.mongodb.core.query.Update;
+import org.springframework.data.mongodb.core.query.UpdateDefinition;
 import org.springframework.data.mongodb.repository.Address;
 import org.springframework.data.mongodb.repository.Aggregation;
 import org.springframework.data.mongodb.repository.Contact;
@@ -53,7 +55,7 @@ public class MongoQueryMethodUnitTests {
 
 	MongoMappingContext context;
 
-	@Before
+	@BeforeEach
 	public void setUp() {
 		context = new MongoMappingContext();
 	}
@@ -105,13 +107,13 @@ public class MongoQueryMethodUnitTests {
 				.isThrownBy(() -> queryMethod(PersonRepository.class, "findByLocationNear", Point.class, Distance.class));
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void rejectsNullMappingContext() throws Exception {
 
 		Method method = PersonRepository.class.getMethod("findByFirstname", String.class, Point.class);
 
-		new MongoQueryMethod(method, new DefaultRepositoryMetadata(PersonRepository.class),
-				new SpelAwareProxyProjectionFactory(), null);
+		assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(() -> new MongoQueryMethod(method,
+				new DefaultRepositoryMetadata(PersonRepository.class), new SpelAwareProxyProjectionFactory(), null));
 	}
 
 	@Test
@@ -218,8 +220,8 @@ public class MongoQueryMethodUnitTests {
 
 		MongoQueryMethod method = queryMethod(PersonRepository.class, "findByAggregation");
 
-		Assertions.assertThat(method.hasAnnotatedAggregation()).isTrue();
-		Assertions.assertThat(method.getAnnotatedAggregation()).hasSize(1);
+		assertThat(method.hasAnnotatedAggregation()).isTrue();
+		assertThat(method.getAnnotatedAggregation()).hasSize(1);
 	}
 
 	@Test // DATAMONGO-2153
@@ -227,8 +229,43 @@ public class MongoQueryMethodUnitTests {
 
 		MongoQueryMethod method = queryMethod(PersonRepository.class, "findByAggregationWithCollation");
 
-		Assertions.assertThat(method.hasAnnotatedCollation()).isTrue();
-		Assertions.assertThat(method.getAnnotatedCollation()).isEqualTo("de_AT");
+		assertThat(method.hasAnnotatedCollation()).isTrue();
+		assertThat(method.getAnnotatedCollation()).isEqualTo("de_AT");
+	}
+
+	@Test // GH-2107
+	void detectsModifyingQueryByUpdateType() throws Exception {
+
+		MongoQueryMethod method = queryMethod(PersonRepository.class, "findAndModifyBy", String.class, Update.class);
+
+		assertThat(method.isModifyingQuery()).isTrue();
+	}
+
+	@Test // GH-2107
+	void detectsPagedModifyingQueryByUpdateType() throws Exception {
+
+		MongoQueryMethod method = queryMethod(PersonRepository.class, "findAndModifyBy", String.class, Update.class,
+				Pageable.class);
+
+		assertThat(method.isModifyingQuery()).isTrue();
+	}
+
+	@Test // GH-2107
+	void detectsModifyingQueryByUpdateDefinitionType() throws Exception {
+
+		MongoQueryMethod method = queryMethod(PersonRepository.class, "findAndModifyBy", String.class,
+				UpdateDefinition.class);
+
+		assertThat(method.isModifyingQuery()).isTrue();
+	}
+
+	@Test // GH-2107
+	void detectsModifyingQueryByAggregationUpdateDefinitionType() throws Exception {
+
+		MongoQueryMethod method = queryMethod(PersonRepository.class, "findAndModifyBy", String.class,
+				AggregationUpdate.class);
+
+		assertThat(method.isModifyingQuery()).isTrue();
 	}
 
 	private MongoQueryMethod queryMethod(Class<?> repository, String name, Class<?>... parameters) throws Exception {
@@ -285,6 +322,14 @@ public class MongoQueryMethodUnitTests {
 		@Aggregation(pipeline = "{'$group': { _id: '$templateId', maxVersion : { $max : '$version'} } }",
 				collation = "de_AT")
 		List<User> findByAggregationWithCollation();
+
+		List<User> findAndModifyBy(String firstname, Update update);
+
+		List<User> findAndModifyBy(String firstname, Update update, Pageable page);
+
+		List<User> findAndModifyBy(String firstname, UpdateDefinition update);
+
+		List<User> findAndModifyBy(String firstname, AggregationUpdate update);
 	}
 
 	interface SampleRepository extends Repository<Contact, Long> {

@@ -22,6 +22,8 @@ import org.springframework.data.mapping.model.SpELExpressionEvaluator;
 import org.springframework.data.mongodb.core.ExecutableFindOperation.ExecutableFind;
 import org.springframework.data.mongodb.core.ExecutableFindOperation.FindWithQuery;
 import org.springframework.data.mongodb.core.ExecutableFindOperation.TerminatingFind;
+import org.springframework.data.mongodb.core.ExecutableUpdateOperation.ExecutableUpdate;
+import org.springframework.data.mongodb.core.ExecutableUpdateOperation.UpdateWithUpdate;
 import org.springframework.data.mongodb.core.MongoOperations;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.UpdateDefinition;
@@ -30,6 +32,7 @@ import org.springframework.data.mongodb.repository.query.MongoQueryExecution.Geo
 import org.springframework.data.mongodb.repository.query.MongoQueryExecution.PagedExecution;
 import org.springframework.data.mongodb.repository.query.MongoQueryExecution.PagingGeoNearExecution;
 import org.springframework.data.mongodb.repository.query.MongoQueryExecution.SlicedExecution;
+import org.springframework.data.mongodb.repository.query.MongoQueryExecution.UpdateExecution;
 import org.springframework.data.repository.query.ParameterAccessor;
 import org.springframework.data.repository.query.QueryMethodEvaluationContextProvider;
 import org.springframework.data.repository.query.RepositoryQuery;
@@ -55,6 +58,7 @@ public abstract class AbstractMongoQuery implements RepositoryQuery {
 	private final MongoQueryMethod method;
 	private final MongoOperations operations;
 	private final ExecutableFind<?> executableFind;
+	private final ExecutableUpdate<?> executableUpdate;
 	private final ExpressionParser expressionParser;
 	private final QueryMethodEvaluationContextProvider evaluationContextProvider;
 
@@ -81,6 +85,7 @@ public abstract class AbstractMongoQuery implements RepositoryQuery {
 		Class<?> type = metadata.getCollectionEntity().getType();
 
 		this.executableFind = operations.query(type);
+		this.executableUpdate = operations.update(type);
 		this.expressionParser = expressionParser;
 		this.evaluationContextProvider = evaluationContextProvider;
 	}
@@ -136,9 +141,15 @@ public abstract class AbstractMongoQuery implements RepositoryQuery {
 
 	private MongoQueryExecution getExecution(ConvertingParameterAccessor accessor, FindWithQuery<?> operation) {
 
-		if (isDeleteQuery()) {
+		if(isDeleteQuery()) {
 			return new DeleteExecution(operations, method);
-		} else if (method.isGeoNearQuery() && method.isPageQuery()) {
+		}
+
+		if(method.isModifyingQuery()) {
+			return new UpdateExecution(executableUpdate, method, accessor, isLimiting());
+		}
+
+		if (method.isGeoNearQuery() && method.isPageQuery()) {
 			return new PagingGeoNearExecution(operation, method, accessor, this);
 		} else if (method.isGeoNearQuery()) {
 			return new GeoNearExecution(operation, method, accessor);
@@ -147,11 +158,6 @@ public abstract class AbstractMongoQuery implements RepositoryQuery {
 		} else if (method.isStreamQuery()) {
 			return q -> operation.matching(q).stream();
 		} else if (method.isCollectionQuery()) {
-
-			if (method.isModifyingQuery()) {
-				return q -> new UpdatingCollectionExecution(accessor.getPageable(), accessor.getUpdate()).execute(q);
-			}
-
 			return q -> operation.matching(q.with(accessor.getPageable()).with(accessor.getSort())).all();
 		} else if (method.isPageQuery()) {
 			return new PagedExecution(operation, accessor.getPageable());
@@ -161,11 +167,6 @@ public abstract class AbstractMongoQuery implements RepositoryQuery {
 			return q -> operation.matching(q).exists();
 		} else {
 			return q -> {
-
-				if (method.isModifyingQuery()) {
-					return new UpdatingSingleEntityExecution(accessor.getUpdate()).execute(q);
-				}
-
 				TerminatingFind<?> find = operation.matching(q);
 				return isLimiting() ? find.firstValue() : find.oneValue();
 			};
@@ -286,53 +287,4 @@ public abstract class AbstractMongoQuery implements RepositoryQuery {
 	 * @since 2.0.4
 	 */
 	protected abstract boolean isLimiting();
-
-	/**
-	 * {@link MongoQueryExecution} for collection returning find and update queries.
-	 *
-	 * @author Thomas Darimont
-	 */
-	final class UpdatingCollectionExecution implements MongoQueryExecution {
-
-		private final Pageable pageable;
-		private final UpdateDefinition update;
-
-		UpdatingCollectionExecution(Pageable pageable, UpdateDefinition update) {
-			this.pageable = pageable;
-			this.update = update;
-		}
-
-		@Override
-		public Object execute(Query query) {
-
-			MongoEntityMetadata<?> metadata = method.getEntityInformation();
-			return operations.findAndModify(query.with(pageable), update, metadata.getJavaType(),
-					metadata.getCollectionName());
-		}
-	}
-
-	/**
-	 * {@link MongoQueryExecution} to return a single entity with update.
-	 *
-	 * @author Thomas Darimont
-	 */
-	final class UpdatingSingleEntityExecution implements MongoQueryExecution {
-
-		private final UpdateDefinition update;
-
-		private UpdatingSingleEntityExecution(UpdateDefinition update) {
-			this.update = update;
-		}
-
-		/*
-		 * (non-Javadoc)
-		 * @see org.springframework.data.mongodb.repository.AbstractMongoQuery.Execution#execute(org.springframework.data.mongodb.core.core.query.Query)
-		 */
-		@Override
-		public Object execute(Query query) {
-
-			MongoEntityMetadata<?> metadata = method.getEntityInformation();
-			return operations.findAndModify(query.limit(1), update, metadata.getJavaType(), metadata.getCollectionName());
-		}
-	}
 }
