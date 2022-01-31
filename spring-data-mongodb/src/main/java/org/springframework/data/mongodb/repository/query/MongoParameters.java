@@ -25,7 +25,7 @@ import org.springframework.data.geo.Distance;
 import org.springframework.data.geo.Point;
 import org.springframework.data.mongodb.core.query.Collation;
 import org.springframework.data.mongodb.core.query.TextCriteria;
-import org.springframework.data.mongodb.core.query.Update;
+import org.springframework.data.mongodb.core.query.UpdateDefinition;
 import org.springframework.data.mongodb.repository.Near;
 import org.springframework.data.mongodb.repository.query.MongoParameters.MongoParameter;
 import org.springframework.data.repository.query.Parameter;
@@ -70,7 +70,7 @@ public class MongoParameters extends Parameters<MongoParameters, MongoParameter>
 		this.rangeIndex = getTypeIndex(parameterTypeInfo, Range.class, Distance.class);
 		this.maxDistanceIndex = this.rangeIndex == -1 ? getTypeIndex(parameterTypeInfo, Distance.class, null) : -1;
 		this.collationIndex = getTypeIndex(parameterTypeInfo, Collation.class, null);
-		this.updateIndex = parameterTypes.indexOf(Update.class);
+		this.updateIndex = QueryUtils.indexOfAssignableIndex(UpdateDefinition.class, parameterTypes);
 
 		int index = findNearIndexInParameters(method);
 		if (index == -1 && isGeoNearMethod) {

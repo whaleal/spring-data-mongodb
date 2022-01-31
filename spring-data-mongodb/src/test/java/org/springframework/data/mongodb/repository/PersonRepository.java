@@ -37,6 +37,7 @@ import org.springframework.data.geo.Point;
 import org.springframework.data.geo.Polygon;
 import org.springframework.data.mongodb.core.aggregation.AggregationResults;
 import org.springframework.data.mongodb.core.query.Update;
+import org.springframework.data.mongodb.core.query.UpdateDefinition;
 import org.springframework.data.mongodb.repository.Person.Sex;
 import org.springframework.data.querydsl.QuerydslPredicateExecutor;
 import org.springframework.data.repository.query.Param;
@@ -420,7 +421,9 @@ public interface PersonRepository extends MongoRepository<Person, String>, Query
 
 	List<Person> findByUnwrappedUser(User user);
 
-	List<Person> findAndModifyByFirstname(String firstname, Update update);
+	List<Person> findAndModifyByFirstname(String firstname, UpdateDefinition update);
+
+	List<Person> findAndModifyByLastname(String lastname, Update update, Pageable page);
 
 	Person findOneAndModifyByFirstname(String firstname, Update update);
 

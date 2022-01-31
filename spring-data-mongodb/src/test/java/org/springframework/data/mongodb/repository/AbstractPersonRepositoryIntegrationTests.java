@@ -59,6 +59,7 @@ import org.springframework.data.geo.Point;
 import org.springframework.data.geo.Polygon;
 import org.springframework.data.mongodb.core.MongoOperations;
 import org.springframework.data.mongodb.core.aggregation.AggregationResults;
+import org.springframework.data.mongodb.core.aggregation.AggregationUpdate;
 import org.springframework.data.mongodb.core.geo.GeoJsonPoint;
 import org.springframework.data.mongodb.core.query.BasicQuery;
 import org.springframework.data.mongodb.core.query.Criteria;
@@ -1474,11 +1475,8 @@ public abstract class AbstractPersonRepositoryIntegrationTests {
 		assertThat(result.getFirstname()).contains("Carter");
 	}
 
-	/**
-	 * @see DATAMONGO-1188
-	 */
-	@Test
-	public void shouldSupportFindAndModfiyForQueryDerivationWithCollectionResult() {
+	@Test // GH-2107
+	public void shouldSupportFindAndModifyForQueryDerivationWithCollectionResult() {
 
 		List<Person> result = repository.findAndModifyByFirstname("Dave", new Update().inc("visits", 42));
 
@@ -1490,11 +1488,35 @@ public abstract class AbstractPersonRepositoryIntegrationTests {
 		assertThat(dave.visits).isEqualTo(42);
 	}
 
-	/**
-	 * @see DATAMONGO-1188
-	 */
-	@Test
-	public void shouldSupportFindAndModfiyForQueryDerivationWithSingleResult() {
+	@Test // GH-2107
+	public void shouldSupportFindAndModifyForQueryDerivationWithPagedLookup() {
+
+		List<Person> result = repository.findAndModifyByLastname("Matthews", new Update().inc("visits", 42), PageRequest.of(0, 1, Sort.by(Direction.DESC, "firstname")));
+
+		assertThat(result.size()).isOne();
+		assertThat(result.get(0)).isEqualTo(oliver);
+
+		Person oliver = repository.findById(result.get(0).getId()).get();
+		assertThat(oliver.visits).isEqualTo(42);
+
+		assertThat(repository.findById(dave.id).get().visits).isZero();
+	}
+
+	@Test // GH-2107
+	public void shouldSupportFindAndModifyWithAggregationUpdate() {
+
+		List<Person> result = repository.findAndModifyByFirstname("Dave", AggregationUpdate.newUpdate().set("visits").toValue(42));
+
+		assertThat(result.size()).isOne();
+		assertThat(result.get(0)).isEqualTo(dave);
+
+		Person dave = repository.findById(result.get(0).getId()).get();
+
+		assertThat(dave.visits).isEqualTo(42);
+	}
+
+	@Test // GH-2107
+	public void shouldSupportFindAndModifyForQueryDerivationWithSingleResult() {
 
 		Person result = repository.findOneAndModifyByFirstname("Dave", new Update().inc("visits", 1337));
 

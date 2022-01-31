@@ -21,6 +21,7 @@ import org.springframework.data.geo.Point;
 import org.springframework.data.mongodb.core.query.Collation;
 import org.springframework.data.mongodb.core.query.TextCriteria;
 import org.springframework.data.mongodb.core.query.Update;
+import org.springframework.data.mongodb.core.query.UpdateDefinition;
 import org.springframework.data.repository.query.ParameterAccessor;
 import org.springframework.lang.Nullable;
 
@@ -82,5 +83,5 @@ public interface MongoParameterAccessor extends ParameterAccessor {
 	 * @return
 	 * @since 1.7
 	 */
-	Update getUpdate();
+	UpdateDefinition getUpdate();
 }

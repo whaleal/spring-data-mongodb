@@ -24,7 +24,7 @@ import org.springframework.data.mongodb.core.ExecutableFindOperation.FindWithQue
 import org.springframework.data.mongodb.core.ExecutableFindOperation.TerminatingFind;
 import org.springframework.data.mongodb.core.MongoOperations;
 import org.springframework.data.mongodb.core.query.Query;
-import org.springframework.data.mongodb.core.query.Update;
+import org.springframework.data.mongodb.core.query.UpdateDefinition;
 import org.springframework.data.mongodb.repository.query.MongoQueryExecution.DeleteExecution;
 import org.springframework.data.mongodb.repository.query.MongoQueryExecution.GeoNearExecution;
 import org.springframework.data.mongodb.repository.query.MongoQueryExecution.PagedExecution;
@@ -295,9 +295,9 @@ public abstract class AbstractMongoQuery implements RepositoryQuery {
 	final class UpdatingCollectionExecution implements MongoQueryExecution {
 
 		private final Pageable pageable;
-		private final Update update;
+		private final UpdateDefinition update;
 
-		UpdatingCollectionExecution(Pageable pageable, Update update) {
+		UpdatingCollectionExecution(Pageable pageable, UpdateDefinition update) {
 			this.pageable = pageable;
 			this.update = update;
 		}
@@ -318,9 +318,9 @@ public abstract class AbstractMongoQuery implements RepositoryQuery {
 	 */
 	final class UpdatingSingleEntityExecution implements MongoQueryExecution {
 
-		private final Update update;
+		private final UpdateDefinition update;
 
-		private UpdatingSingleEntityExecution(Update update) {
+		private UpdatingSingleEntityExecution(UpdateDefinition update) {
 			this.update = update;
 		}
 

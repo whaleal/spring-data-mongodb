@@ -30,7 +30,7 @@ import org.springframework.data.geo.GeoResults;
 import org.springframework.data.mapping.context.MappingContext;
 import org.springframework.data.mongodb.core.mapping.MongoPersistentEntity;
 import org.springframework.data.mongodb.core.mapping.MongoPersistentProperty;
-import org.springframework.data.mongodb.core.query.Update;
+import org.springframework.data.mongodb.core.query.UpdateDefinition;
 import org.springframework.data.mongodb.repository.Aggregation;
 import org.springframework.data.mongodb.repository.Meta;
 import org.springframework.data.mongodb.repository.Query;
@@ -39,6 +39,7 @@ import org.springframework.data.projection.ProjectionFactory;
 import org.springframework.data.repository.core.RepositoryMetadata;
 import org.springframework.data.repository.query.QueryMethod;
 import org.springframework.data.util.ClassTypeInformation;
+import org.springframework.data.util.Lazy;
 import org.springframework.data.util.TypeInformation;
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
@@ -64,6 +65,7 @@ public class MongoQueryMethod extends QueryMethod {
 	private final Map<Class<? extends Annotation>, Optional<Annotation>> annotationCache;
 
 	private @Nullable MongoEntityMetadata<?> metadata;
+	private Lazy<Boolean> isModifying = Lazy.of(this::resolveModifyingQueryIndicators);
 
 	/**
 	 * Creates a new {@link MongoQueryMethod} from the given {@link Method}.
@@ -402,8 +404,10 @@ public class MongoQueryMethod extends QueryMethod {
 
 	@Override
 	public boolean isModifyingQuery() {
+		return isModifying.get();
+	}
 
-		Class<?>[] parameterTypes = this.method.getParameterTypes();
-		return parameterTypes.length > 0 && parameterTypes[parameterTypes.length - 1] == Update.class;
+	private boolean resolveModifyingQueryIndicators() {
+		return QueryUtils.indexOfAssignableIndex(UpdateDefinition.class, method.getParameterTypes()) != -1;
 	}
 }
