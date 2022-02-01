@@ -23,6 +23,9 @@ import static org.springframework.data.mongodb.test.util.Assertions.assertThat;
 
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.data.mongodb.core.aggregation.AggregationUpdate;
+import org.springframework.data.mongodb.core.query.Update;
+import org.springframework.data.mongodb.core.query.UpdateDefinition;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -625,6 +628,100 @@ class ReactiveMongoRepositoryTests {
 				.verifyComplete();
 	}
 
+	@Test // GH-2107
+	void shouldSupportFindAndModifyForQueryDerivationWithCollectionResult() {
+
+		repository.findAndModifyByFirstname("Dave", new Update().inc("visits", 42)) //
+						.as(StepVerifier::create) //
+								.expectNext(dave) //
+										.verifyComplete();
+
+
+		repository.findById(dave.getId()) //
+						.as(StepVerifier::create) //
+				.assertNext(it -> {
+					assertThat(it.getVisits()).isEqualTo(42);
+				}) //
+				.verifyComplete();
+
+	}
+
+	@Test // GH-2107
+	public void shouldSupportFindAndModifyForQueryDerivationWithPagedLookup() {
+
+		repository.findAndModifyByLastname("Matthews", new Update().inc("visits", 42),
+				Sort.by(Direction.DESC, "firstname"))
+				.as(StepVerifier::create) //
+				.expectNext(oliver) //
+				.verifyComplete();
+
+		repository.findById(oliver.getId()) //
+				.as(StepVerifier::create) //
+				.assertNext(it -> {
+					assertThat(it.getVisits()).isEqualTo(42);
+				}) //
+				.verifyComplete();
+
+		repository.findById(dave.getId()) //
+				.as(StepVerifier::create) //
+				.assertNext(it -> {
+					assertThat(it.getVisits()).isZero();
+				}) //
+				.verifyComplete();
+	}
+
+	@Test // GH-2107
+	public void shouldSupportFindAndModifyWithAggregationUpdate() {
+
+		repository.findAndModifyByFirstname("Dave",
+				AggregationUpdate.newUpdate().set("visits").toValue(42))
+				.as(StepVerifier::create) //
+				.expectNext(dave) //
+				.verifyComplete();
+
+		repository.findById(dave.getId()) //
+				.as(StepVerifier::create) //
+				.assertNext(it -> {
+					assertThat(it.getVisits()).isEqualTo(42);
+				}) //
+				.verifyComplete();
+	}
+
+	@Test // GH-2107
+	public void shouldSupportFindAndModifyForQueryDerivationWithSingleResult() {
+
+		repository.findOneAndModifyByFirstname("Dave", new Update().inc("visits", 1337))
+				.as(StepVerifier::create) //
+				.expectNext(dave) //
+				.verifyComplete();
+
+		repository.findById(dave.getId()) //
+				.as(StepVerifier::create) //
+				.assertNext(it -> {
+					assertThat(it.getVisits()).isEqualTo(1337);
+				}) //
+				.verifyComplete();
+	}
+
+
+	@Test // GH-2107
+	void shouldAllowToUpdateAllElements() {
+		repository.findAndUpdateAllByLastname("Matthews", new Update().inc("visits", 1337))
+				.as(StepVerifier::create)
+				.expectNext(2L)
+				.verifyComplete();
+	}
+
+	@Test // GH-2107
+	void shouldAllowToUpdateAllElementsWithVoidReturn() {
+
+		repository.findAndUpdateByLastname("Matthews", new Update().inc("visits", 1337))
+						.as(StepVerifier::create)
+								.verifyComplete();
+
+		repository.findByLastname("Matthews").map(Person::getVisits).collectList().as(StepVerifier::create).expectNext(Arrays.asList(1337,1337)).verifyComplete();
+	}
+
 	interface ReactivePersonRepository
 			extends ReactiveMongoRepository<Person, String>, ReactiveQuerydslPredicateExecutor<Person> {
 
@@ -701,6 +798,16 @@ class ReactiveMongoRepositoryTests {
 		Mono<Long> deleteCountByLastname(String lastname);
 
 		Mono<Person> deleteSinglePersonByLastname(String lastname);
+
+		Mono<Long> findAndUpdateAllByLastname(String lastname, Update update);
+
+		Mono<Void> findAndUpdateByLastname(String lastname, Update update);
+
+		Mono<Person> findAndModifyByFirstname(String firstname, UpdateDefinition update);
+
+		Mono<Person> findAndModifyByLastname(String lastname, Update update, Sort sort);
+
+		Mono<Person> findOneAndModifyByFirstname(String firstname, Update update);
 	}
 
 	interface ReactiveContactRepository extends ReactiveMongoRepository<Contact, String> {}

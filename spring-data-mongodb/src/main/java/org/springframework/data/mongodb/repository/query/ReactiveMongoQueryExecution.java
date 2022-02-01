@@ -15,6 +15,13 @@
  */
 package org.springframework.data.mongodb.repository.query;
 
+import com.mongodb.client.result.UpdateResult;
+import org.springframework.dao.InvalidDataAccessApiUsageException;
+import org.springframework.data.mongodb.core.ExecutableUpdateOperation.ExecutableUpdate;
+import org.springframework.data.mongodb.core.MongoOperations;
+import org.springframework.data.mongodb.core.ReactiveUpdateOperation.ReactiveUpdate;
+import org.springframework.data.mongodb.core.ReactiveUpdateOperation.TerminatingUpdate;
+import org.springframework.data.mongodb.core.query.UpdateDefinition;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -145,6 +152,60 @@ interface ReactiveMongoQueryExecution {
 
 			return operations.remove(query, type, collection)
 					.map(deleteResult -> deleteResult.wasAcknowledged() ? deleteResult.getDeletedCount() : 0L);
+		}
+	}
+
+	/**
+	 * {@link MongoQueryExecution} updating documents matching the query.
+	 * <p>
+	 * Depending on the result type (numeric value | {@literal void}) an {@link MongoOperations#updateMulti(Query, UpdateDefinition, Class)} is performed.
+	 * In case the {@link AbstractMongoQuery query} is {@link AbstractMongoQuery#isLimiting()} the operation will call {@link MongoOperations#updateFirst(Query, UpdateDefinition, Class)}.
+	 * <p>
+	 * For methods returning a domain specific type {@link MongoOperations#findAndModify(Query, UpdateDefinition, Class)}
+	 *
+	 * @author Christph Strobl
+	 * @since
+	 */
+	final class UpdateExecution implements ReactiveMongoQueryExecution {
+
+		private final ReactiveUpdate<?> updateOps;
+		private final MongoQueryMethod method;
+		private final MongoParameterAccessor accessor;
+		private boolean limiting;
+
+		UpdateExecution(ReactiveUpdate<?> updateOps, ReactiveMongoQueryMethod method, MongoParameterAccessor accessor,
+				boolean limiting) {
+
+			this.updateOps = updateOps;
+			this.method = method;
+			this.accessor = accessor;
+			this.limiting = limiting;
+		}
+
+		@Override
+		public Publisher<? extends Object> execute(Query query, Class<?> type, String collection) {
+
+			if (method.isCollectionQuery() || method.isSliceQuery() || method.isPageQuery()) {
+				throw new InvalidDataAccessApiUsageException(
+						"Derived update may return a numeric value (the number of updated documents), void or a single entity.");
+			}
+
+			Class<?> resultType = method.getReturnedObjectType();
+			if(ReactiveWrappers.usesReactiveType(resultType)) {
+				resultType = method.getReturnType().getComponentType().getType();
+			}
+			boolean isUpdateCountReturnType = ClassUtils.isAssignable(Number.class, resultType);
+			boolean isVoidReturnType = ClassUtils.isAssignable(Void.class, resultType);
+
+			TerminatingUpdate<?> update = updateOps.inCollection(collection).matching(query.with(accessor.getSort())).apply(accessor.getUpdate());
+
+			if (isUpdateCountReturnType || isVoidReturnType) {
+				if (limiting) {
+					return update.first().map(UpdateResult::getModifiedCount);
+				}
+				return update.all().map(UpdateResult::getModifiedCount);
+			}
+			return update.findAndModify();
 		}
 	}
 

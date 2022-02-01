@@ -20,7 +20,6 @@ import reactor.core.publisher.Mono;
 import org.bson.Document;
 import org.bson.codecs.configuration.CodecRegistry;
 import org.reactivestreams.Publisher;
-
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.data.mapping.model.EntityInstantiators;
 import org.springframework.data.mapping.model.SpELExpressionEvaluator;
@@ -29,7 +28,9 @@ import org.springframework.data.mongodb.core.ReactiveFindOperation.FindWithProje
 import org.springframework.data.mongodb.core.ReactiveFindOperation.FindWithQuery;
 import org.springframework.data.mongodb.core.ReactiveFindOperation.TerminatingFind;
 import org.springframework.data.mongodb.core.ReactiveMongoOperations;
+import org.springframework.data.mongodb.core.ReactiveUpdateOperation.ReactiveUpdate;
 import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.repository.query.ReactiveMongoQueryExecution.UpdateExecution;
 import org.springframework.data.mongodb.repository.query.ReactiveMongoQueryExecution.DeleteExecution;
 import org.springframework.data.mongodb.repository.query.ReactiveMongoQueryExecution.GeoNearExecution;
 import org.springframework.data.mongodb.repository.query.ReactiveMongoQueryExecution.ResultProcessingConverter;
@@ -59,6 +60,7 @@ public abstract class AbstractReactiveMongoQuery implements RepositoryQuery {
 	private final ReactiveMongoOperations operations;
 	private final EntityInstantiators instantiators;
 	private final FindWithProjection<?> findOperationWithProjection;
+	private final ReactiveUpdate<?> updateOps;
 	private final ExpressionParser expressionParser;
 	private final ReactiveQueryMethodEvaluationContextProvider evaluationContextProvider;
 
@@ -89,6 +91,7 @@ public abstract class AbstractReactiveMongoQuery implements RepositoryQuery {
 		Class<?> type = metadata.getCollectionEntity().getType();
 
 		this.findOperationWithProjection = operations.query(type);
+		this.updateOps = operations.update(type);
 	}
 
 	/*
@@ -180,7 +183,10 @@ public abstract class AbstractReactiveMongoQuery implements RepositoryQuery {
 
 		if (isDeleteQuery()) {
 			return new DeleteExecution(operations, method);
-		} else if (method.isGeoNearQuery()) {
+		} else if(method.isModifyingQuery()) {
+			return new UpdateExecution(updateOps, method, accessor, isLimiting());
+		}
+		else if (method.isGeoNearQuery()) {
 			return new GeoNearExecution(operations, accessor, method.getReturnType());
 		} else if (isTailable(method)) {
 			return (q, t, c) -> operation.matching(q.with(accessor.getPageable())).tail();
