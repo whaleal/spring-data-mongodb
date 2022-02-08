@@ -15,33 +15,45 @@
  */
 package org.springframework.data.mongodb.repository.query;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.bson.Document;
 import org.bson.codecs.configuration.CodecRegistry;
-import org.springframework.data.domain.Pageable;
+import org.springframework.dao.InvalidDataAccessApiUsageException;
 import org.springframework.data.mapping.model.SpELExpressionEvaluator;
 import org.springframework.data.mongodb.core.ExecutableFindOperation.ExecutableFind;
 import org.springframework.data.mongodb.core.ExecutableFindOperation.FindWithQuery;
 import org.springframework.data.mongodb.core.ExecutableFindOperation.TerminatingFind;
 import org.springframework.data.mongodb.core.ExecutableUpdateOperation.ExecutableUpdate;
-import org.springframework.data.mongodb.core.ExecutableUpdateOperation.UpdateWithUpdate;
 import org.springframework.data.mongodb.core.MongoOperations;
+import org.springframework.data.mongodb.core.aggregation.AggregationOperation;
+import org.springframework.data.mongodb.core.aggregation.AggregationUpdate;
+import org.springframework.data.mongodb.core.query.BasicUpdate;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.UpdateDefinition;
+import org.springframework.data.mongodb.repository.Update;
 import org.springframework.data.mongodb.repository.query.MongoQueryExecution.DeleteExecution;
 import org.springframework.data.mongodb.repository.query.MongoQueryExecution.GeoNearExecution;
 import org.springframework.data.mongodb.repository.query.MongoQueryExecution.PagedExecution;
 import org.springframework.data.mongodb.repository.query.MongoQueryExecution.PagingGeoNearExecution;
 import org.springframework.data.mongodb.repository.query.MongoQueryExecution.SlicedExecution;
 import org.springframework.data.mongodb.repository.query.MongoQueryExecution.UpdateExecution;
+import org.springframework.data.mongodb.util.json.ParameterBindingContext;
+import org.springframework.data.mongodb.util.json.ParameterBindingDocumentCodec;
 import org.springframework.data.repository.query.ParameterAccessor;
 import org.springframework.data.repository.query.QueryMethodEvaluationContextProvider;
 import org.springframework.data.repository.query.RepositoryQuery;
 import org.springframework.data.repository.query.ResultProcessor;
 import org.springframework.data.spel.ExpressionDependencies;
+import org.springframework.data.util.Lazy;
 import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.ExpressionParser;
+import org.springframework.lang.NonNull;
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
+import org.springframework.util.ObjectUtils;
+import org.springframework.util.StringUtils;
 
 import com.mongodb.client.MongoDatabase;
 
@@ -61,6 +73,7 @@ public abstract class AbstractMongoQuery implements RepositoryQuery {
 	private final ExecutableUpdate<?> executableUpdate;
 	private final ExpressionParser expressionParser;
 	private final QueryMethodEvaluationContextProvider evaluationContextProvider;
+	private final Lazy<ParameterBindingDocumentCodec> codec = Lazy.of(() -> new ParameterBindingDocumentCodec(getCodecRegistry()));
 
 	/**
 	 * Creates a new {@link AbstractMongoQuery} from the given {@link MongoQueryMethod} and {@link MongoOperations}.
@@ -146,7 +159,7 @@ public abstract class AbstractMongoQuery implements RepositoryQuery {
 		}
 
 		if(method.isModifyingQuery()) {
-			return new UpdateExecution(executableUpdate, method, accessor, isLimiting());
+			return new UpdateExecution(executableUpdate, method, () -> createUpdate(accessor), accessor);
 		}
 
 		if (method.isGeoNearQuery() && method.isPageQuery()) {
@@ -224,6 +237,59 @@ public abstract class AbstractMongoQuery implements RepositoryQuery {
 	 */
 	protected Query createCountQuery(ConvertingParameterAccessor accessor) {
 		return applyQueryMetaAttributesWhenPresent(createQuery(accessor));
+	}
+
+	protected UpdateDefinition createUpdate(ConvertingParameterAccessor accessor) {
+
+		if(accessor.getUpdate() != null) {
+			return accessor.getUpdate();
+		}
+
+		if(method.hasAnnotatedUpdate()) {
+			Update updateSource = method.getUpdateSource();
+			if(StringUtils.hasText(updateSource.update())) {
+				return new BasicUpdate(bindParameters(updateSource.update(), accessor));
+			}
+			if(!ObjectUtils.isEmpty(updateSource.pipeline())) {
+				return AggregationUpdate.from(computePipeline(updateSource.pipeline(), accessor));
+			}
+		}
+		throw new InvalidDataAccessApiUsageException("oh no - this is bad.");
+	}
+
+	protected List<AggregationOperation> computePipeline(String[] sourcePipeline, ConvertingParameterAccessor accessor) {
+
+		List<AggregationOperation> stages = new ArrayList<>(sourcePipeline.length);
+		for (String source : sourcePipeline) {
+			stages.add(computePipelineStage(source, accessor));
+		}
+		return stages;
+	}
+
+	private AggregationOperation computePipelineStage(String source, ConvertingParameterAccessor accessor) {
+		return ctx -> ctx.getMappedObject(bindParameters(source, accessor), getQueryMethod().getDomainClass());
+	}
+
+	protected Document decode(String source, ParameterBindingContext bindingContext) {
+		return getParameterBindingCodec().decode(source, bindingContext);
+	}
+
+	private Document bindParameters(String source, ConvertingParameterAccessor accessor) {
+		return decode(source, prepareBindingContext(source, accessor));
+	}
+
+	@NonNull
+	protected ParameterBindingContext prepareBindingContext(String source, ConvertingParameterAccessor accessor) {
+
+		ExpressionDependencies dependencies = getParameterBindingCodec().captureExpressionDependencies(source, accessor::getBindableValue,
+				expressionParser);
+
+		SpELExpressionEvaluator evaluator = getSpELExpressionEvaluatorFor(dependencies, accessor);
+		return new ParameterBindingContext(accessor::getBindableValue, evaluator);
+	}
+
+	protected ParameterBindingDocumentCodec getParameterBindingCodec() {
+		return codec.get();
 	}
 
 	/**

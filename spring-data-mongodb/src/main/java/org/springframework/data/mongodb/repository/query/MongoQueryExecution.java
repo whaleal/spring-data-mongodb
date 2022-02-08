@@ -16,6 +16,7 @@
 package org.springframework.data.mongodb.repository.query;
 
 import java.util.List;
+import java.util.function.Supplier;
 
 import org.springframework.dao.InvalidDataAccessApiUsageException;
 import org.springframework.data.domain.Page;
@@ -318,16 +319,15 @@ interface MongoQueryExecution {
 
 		private final ExecutableUpdate<?> updateOps;
 		private final MongoQueryMethod method;
+		private Supplier<UpdateDefinition> updateDefinitionSupplier;
 		private final MongoParameterAccessor accessor;
-		private boolean limiting;
 
-		UpdateExecution(ExecutableUpdate<?> updateOps, MongoQueryMethod method, MongoParameterAccessor accessor,
-				boolean limiting) {
+		UpdateExecution(ExecutableUpdate<?> updateOps, MongoQueryMethod method, Supplier<UpdateDefinition> updateSupplier, MongoParameterAccessor accessor) {
 
 			this.updateOps = updateOps;
 			this.method = method;
+			this.updateDefinitionSupplier = updateSupplier;
 			this.accessor = accessor;
-			this.limiting = limiting;
 		}
 
 		@Override
@@ -341,15 +341,14 @@ interface MongoQueryExecution {
 			boolean isUpdateCountReturnType = ClassUtils.isAssignable(Number.class, method.getReturnedObjectType());
 			boolean isVoidReturnType = ClassUtils.isAssignable(Void.class, method.getReturnedObjectType());
 
-			TerminatingUpdate<?> update = updateOps.matching(query.with(accessor.getSort())).apply(accessor.getUpdate());
+			TerminatingUpdate<?> update = updateOps.matching(query.with(accessor.getSort())).apply(updateDefinitionSupplier.get());
 
 			if (isUpdateCountReturnType || isVoidReturnType) {
-				if (limiting) {
-					return update.first().getModifiedCount();
-				}
 				return update.all().getModifiedCount();
 			}
 			return update.findAndModifyValue();
 		}
+
+
 	}
 }

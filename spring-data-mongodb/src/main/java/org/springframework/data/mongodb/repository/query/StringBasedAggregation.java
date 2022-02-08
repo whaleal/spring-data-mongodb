@@ -172,26 +172,7 @@ public class StringBasedAggregation extends AbstractMongoQuery {
 	}
 
 	List<AggregationOperation> computePipeline(MongoQueryMethod method, ConvertingParameterAccessor accessor) {
-
-		ParameterBindingDocumentCodec codec = new ParameterBindingDocumentCodec(getCodecRegistry());
-		String[] sourcePipeline = method.getAnnotatedAggregation();
-
-		List<AggregationOperation> stages = new ArrayList<>(sourcePipeline.length);
-		for (String source : sourcePipeline) {
-			stages.add(computePipelineStage(source, accessor, codec));
-		}
-		return stages;
-	}
-
-	private AggregationOperation computePipelineStage(String source, ConvertingParameterAccessor accessor,
-			ParameterBindingDocumentCodec codec) {
-
-		ExpressionDependencies dependencies = codec.captureExpressionDependencies(source, accessor::getBindableValue,
-				expressionParser);
-
-		SpELExpressionEvaluator evaluator = getSpELExpressionEvaluatorFor(dependencies, accessor);
-		ParameterBindingContext bindingContext = new ParameterBindingContext(accessor::getBindableValue, evaluator);
-		return ctx -> ctx.getMappedObject(codec.decode(source, bindingContext), getQueryMethod().getDomainClass());
+		return computePipeline(method.getAnnotatedAggregation(), accessor);
 	}
 
 	private AggregationOptions computeOptions(MongoQueryMethod method, ConvertingParameterAccessor accessor) {

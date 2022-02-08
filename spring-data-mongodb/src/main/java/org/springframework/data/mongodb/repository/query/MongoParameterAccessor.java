@@ -83,5 +83,6 @@ public interface MongoParameterAccessor extends ParameterAccessor {
 	 * @return
 	 * @since 1.7
 	 */
+	@Nullable
 	UpdateDefinition getUpdate();
 }

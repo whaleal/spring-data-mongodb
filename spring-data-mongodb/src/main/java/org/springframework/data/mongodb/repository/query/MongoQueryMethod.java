@@ -35,6 +35,7 @@ import org.springframework.data.mongodb.repository.Aggregation;
 import org.springframework.data.mongodb.repository.Meta;
 import org.springframework.data.mongodb.repository.Query;
 import org.springframework.data.mongodb.repository.Tailable;
+import org.springframework.data.mongodb.repository.Update;
 import org.springframework.data.projection.ProjectionFactory;
 import org.springframework.data.repository.core.RepositoryMetadata;
 import org.springframework.data.repository.query.QueryMethod;
@@ -395,6 +396,10 @@ public class MongoQueryMethod extends QueryMethod {
 		return doFindAnnotation(Aggregation.class);
 	}
 
+	Optional<Update> lookupUpdateAnnotation() {
+		return doFindAnnotation(Update.class);
+	}
+
 	@SuppressWarnings("unchecked")
 	private <A extends Annotation> Optional<A> doFindAnnotation(Class<A> annotationType) {
 
@@ -408,6 +413,14 @@ public class MongoQueryMethod extends QueryMethod {
 	}
 
 	private boolean resolveModifyingQueryIndicators() {
-		return QueryUtils.indexOfAssignableIndex(UpdateDefinition.class, method.getParameterTypes()) != -1;
+		return hasAnnotatedUpdate() || QueryUtils.indexOfAssignableIndex(UpdateDefinition.class, method.getParameterTypes()) != -1;
+	}
+
+	public boolean hasAnnotatedUpdate() {
+		return lookupUpdateAnnotation().isPresent();
+	}
+
+	public Update getUpdateSource() {
+		return lookupUpdateAnnotation().get();
 	}
 }
