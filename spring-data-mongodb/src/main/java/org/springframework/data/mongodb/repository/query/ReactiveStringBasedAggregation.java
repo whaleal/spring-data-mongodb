@@ -122,30 +122,7 @@ public class ReactiveStringBasedAggregation extends AbstractReactiveMongoQuery {
 	}
 
 	private Mono<List<AggregationOperation>> computePipeline(ConvertingParameterAccessor accessor) {
-
-		return getCodecRegistry().map(ParameterBindingDocumentCodec::new).flatMap(codec -> {
-
-			String[] sourcePipeline = getQueryMethod().getAnnotatedAggregation();
-
-			List<Mono<AggregationOperation>> stages = new ArrayList<>(sourcePipeline.length);
-			for (String source : sourcePipeline) {
-				stages.add(computePipelineStage(source, accessor, codec));
-			}
-			return Flux.concat(stages).collectList();
-		});
-	}
-
-	private Mono<AggregationOperation> computePipelineStage(String source, ConvertingParameterAccessor accessor,
-			ParameterBindingDocumentCodec codec) {
-
-		ExpressionDependencies dependencies = codec.captureExpressionDependencies(source, accessor::getBindableValue,
-				expressionParser);
-
-		return getSpelEvaluatorFor(dependencies, accessor).map(it -> {
-
-			ParameterBindingContext bindingContext = new ParameterBindingContext(accessor::getBindableValue, it);
-			return ctx -> ctx.getMappedObject(codec.decode(source, bindingContext), getQueryMethod().getDomainClass());
-		});
+		return computePipeline(getQueryMethod().getAnnotatedAggregation(), accessor);
 	}
 
 	private AggregationOptions computeOptions(MongoQueryMethod method, ConvertingParameterAccessor accessor) {

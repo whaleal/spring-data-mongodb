@@ -33,4 +33,8 @@ public interface ValueProvider {
 	 */
 	@Nullable
 	Object getBindableValue(int index);
+
+	static ValueProvider empty() {
+		return index -> null;
+	}
 }

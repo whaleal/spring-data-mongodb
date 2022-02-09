@@ -36,7 +36,6 @@ import org.springframework.data.geo.GeoResults;
 import org.springframework.data.geo.Point;
 import org.springframework.data.geo.Polygon;
 import org.springframework.data.mongodb.core.aggregation.AggregationResults;
-import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.data.mongodb.core.query.UpdateDefinition;
 import org.springframework.data.mongodb.repository.Person.Sex;
 import org.springframework.data.querydsl.QuerydslPredicateExecutor;
@@ -421,15 +420,23 @@ public interface PersonRepository extends MongoRepository<Person, String>, Query
 
 	List<Person> findByUnwrappedUser(User user);
 
-	int findAndUpdateAllByLastname(String lastname, Update update);
+	int findAndUpdateViaMethodArgAllByLastname(String lastname, UpdateDefinition update);
 
-	void findAndUpdateByLastname(String lastname, Update update);
+	@Update("{ '$inc' : { 'visits' : ?1 } }")
+	int findAndIncrementVisitsByLastname(String lastname, int increment);
 
-	Person findAndModifyByFirstname(String firstname, UpdateDefinition update);
+	@Query("{ 'lastname' : ?0 }")
+	@Update("{ '$inc' : { 'visits' : ?1 } }")
+	int updateAllByLastname(String lastname, int increment);
 
-	Person findAndModifyByLastname(String lastname, Update update, Sort sort);
+	@Update( pipeline = {"{ '$set' : { 'visits' : { '$add' : [ '$visits', ?1 ] } } }"})
+	void findAndIncrementVisitsViaPipelineByLastname(String lastname, int increment);
 
-	Person findOneAndModifyByFirstname(String firstname, Update update);
+	@Update("{ '$inc' : { 'visits' : ?#{[1]} } }")
+	int findAndIncrementVisitsUsingSpELByLastname(String lastname, int increment);
+
+	@Update("{ '$inc' : { 'visits' : 1 } }")
+	Person findAndIncrementVisitsByFirstname(String firstname);
 
 	@Query("{ 'age' : null }")
 	Person findByQueryWithNullEqualityCheck();

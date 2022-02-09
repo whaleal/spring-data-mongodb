@@ -173,14 +173,16 @@ interface ReactiveMongoQueryExecution {
 		private final MongoQueryMethod method;
 		private final MongoParameterAccessor accessor;
 		private boolean limiting;
+		private Mono<UpdateDefinition> update;
 
-		UpdateExecution(ReactiveUpdate<?> updateOps, ReactiveMongoQueryMethod method, MongoParameterAccessor accessor,
+		UpdateExecution(ReactiveUpdate<?> updateOps, ReactiveMongoQueryMethod method, MongoParameterAccessor accessor, Mono<UpdateDefinition> update,
 				boolean limiting) {
 
 			this.updateOps = updateOps;
 			this.method = method;
 			this.accessor = accessor;
 			this.limiting = limiting;
+			this.update = update;
 		}
 
 		@Override
@@ -203,11 +205,11 @@ interface ReactiveMongoQueryExecution {
 				throw new InvalidDataAccessApiUsageException("meh");
 			}
 
-			return updateOps.inCollection(collection) //
+			return update.flatMap(it -> updateOps.inCollection(collection) //
 					.matching(query.with(accessor.getSort())) // actually we could do it unsorted
-					.apply(accessor.getUpdate()) //
+					.apply(it) //
 					.all() //
-					.map(UpdateResult::getModifiedCount);
+					.map(UpdateResult::getModifiedCount));
 		}
 	}
 

@@ -23,6 +23,7 @@ import static org.springframework.data.mongodb.test.util.Assertions.assertThat;
 
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.dao.InvalidDataAccessApiUsageException;
 import org.springframework.data.mongodb.core.aggregation.AggregationUpdate;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.data.mongodb.core.query.UpdateDefinition;
@@ -629,97 +630,78 @@ class ReactiveMongoRepositoryTests {
 	}
 
 	@Test // GH-2107
-	void shouldSupportFindAndModifyForQueryDerivationWithCollectionResult() {
-
-		repository.findAndModifyByFirstname("Dave", new Update().inc("visits", 42)) //
-						.as(StepVerifier::create) //
-								.expectNext(dave) //
-										.verifyComplete();
-
-
-		repository.findById(dave.getId()) //
-						.as(StepVerifier::create) //
-				.assertNext(it -> {
-					assertThat(it.getVisits()).isEqualTo(42);
-				}) //
-				.verifyComplete();
-
-	}
-
-	@Test // GH-2107
-	public void shouldSupportFindAndModifyForQueryDerivationWithPagedLookup() {
-
-		repository.findAndModifyByLastname("Matthews", new Update().inc("visits", 42),
-				Sort.by(Direction.DESC, "firstname"))
-				.as(StepVerifier::create) //
-				.expectNext(oliver) //
-				.verifyComplete();
-
-		repository.findById(oliver.getId()) //
-				.as(StepVerifier::create) //
-				.assertNext(it -> {
-					assertThat(it.getVisits()).isEqualTo(42);
-				}) //
-				.verifyComplete();
-
-		repository.findById(dave.getId()) //
-				.as(StepVerifier::create) //
-				.assertNext(it -> {
-					assertThat(it.getVisits()).isZero();
-				}) //
-				.verifyComplete();
-	}
-
-	@Test // GH-2107
-	public void shouldSupportFindAndModifyWithAggregationUpdate() {
-
-		repository.findAndModifyByFirstname("Dave",
-				AggregationUpdate.newUpdate().set("visits").toValue(42))
-				.as(StepVerifier::create) //
-				.expectNext(dave) //
-				.verifyComplete();
-
-		repository.findById(dave.getId()) //
-				.as(StepVerifier::create) //
-				.assertNext(it -> {
-					assertThat(it.getVisits()).isEqualTo(42);
-				}) //
-				.verifyComplete();
-	}
-
-	@Test // GH-2107
-	public void shouldSupportFindAndModifyForQueryDerivationWithSingleResult() {
-
-		repository.findOneAndModifyByFirstname("Dave", new Update().inc("visits", 1337))
-				.as(StepVerifier::create) //
-				.expectNext(dave) //
-				.verifyComplete();
-
-		repository.findById(dave.getId()) //
-				.as(StepVerifier::create) //
-				.assertNext(it -> {
-					assertThat(it.getVisits()).isEqualTo(1337);
-				}) //
-				.verifyComplete();
-	}
-
-
-	@Test // GH-2107
 	void shouldAllowToUpdateAllElements() {
-		repository.findAndUpdateAllByLastname("Matthews", new Update().inc("visits", 1337))
+		repository.findAndUpdateViaMethodArgAllByLastname("Matthews", new Update().inc("visits", 1337))
 				.as(StepVerifier::create)
 				.expectNext(2L)
 				.verifyComplete();
 	}
 
 	@Test // GH-2107
+	void mixAnnotatedUpdateWithAnnotatedQuery() {
+
+		repository.updateAllByLastname("Matthews", 1337)
+				.as(StepVerifier::create)
+				.expectNext(2L)
+				.verifyComplete();
+
+		repository.findByLastname("Matthews")
+				.map(Person::getVisits)
+				.as(StepVerifier::create)
+				.expectNext(1337, 1337)
+				.verifyComplete();
+	}
+
+	@Test // GH-2107
+	void annotatedUpdateWithSpELIsAppliedCorrectly() {
+
+		repository.findAndIncrementVisitsUsingSpELByLastname("Matthews", 1337)
+				.as(StepVerifier::create)
+				.expectNext(2L)
+				.verifyComplete();
+
+		repository.findByLastname("Matthews")
+				.map(Person::getVisits)
+				.as(StepVerifier::create)
+				.expectNext(1337, 1337)
+				.verifyComplete();
+	}
+
+	@Test // GH-2107
+	void annotatedAggregationUpdateIsAppliedCorrectly() {
+
+		repository.findAndIncrementVisitsViaPipelineByLastname("Matthews", 1337)
+				.as(StepVerifier::create)
+				.verifyComplete();
+
+		repository.findByLastname("Matthews")
+				.map(Person::getVisits)
+				.as(StepVerifier::create)
+				.expectNext(1337, 1337)
+				.verifyComplete();
+	}
+
+	@Test // GH-2107
 	void shouldAllowToUpdateAllElementsWithVoidReturn() {
 
-		repository.findAndUpdateByLastname("Matthews", new Update().inc("visits", 1337))
-						.as(StepVerifier::create)
-								.verifyComplete();
+		repository.findAndIncrementVisitsByLastname("Matthews", 1337)
+				.as(StepVerifier::create)
+				.expectNext(2L)
+				.verifyComplete();
 
-		repository.findByLastname("Matthews").map(Person::getVisits).collectList().as(StepVerifier::create).expectNext(Arrays.asList(1337,1337)).verifyComplete();
+		repository.findByLastname("Matthews")
+				.map(Person::getVisits)
+				.as(StepVerifier::create)
+				.expectNext(1337, 1337)
+				.verifyComplete();
+	}
+
+	@Test // GH-2107
+	void annotatedUpdateMustNotAllowSingleResult() {
+
+		repository.findAndIncrementVisitsByFirstname("Dave")
+						.as(StepVerifier::create)
+								.verifyError(InvalidDataAccessApiUsageException.class);
 	}
 
 	interface ReactivePersonRepository
@@ -799,15 +781,24 @@ class ReactiveMongoRepositoryTests {
 
 		Mono<Person> deleteSinglePersonByLastname(String lastname);
 
-		Mono<Long> findAndUpdateAllByLastname(String lastname, Update update);
+		Mono<Long> findAndUpdateViaMethodArgAllByLastname(String lastname, UpdateDefinition update);
 
-		Mono<Void> findAndUpdateByLastname(String lastname, Update update);
+		@org.springframework.data.mongodb.repository.Update("{ '$inc' : { 'visits' : ?1 } }")
+		Mono<Long> findAndIncrementVisitsByLastname(String lastname, int increment);
 
-		Mono<Person> findAndModifyByFirstname(String firstname, UpdateDefinition update);
+		@Query("{ 'lastname' : ?0 }")
+		@org.springframework.data.mongodb.repository.Update("{ '$inc' : { 'visits' : ?1 } }")
+		Mono<Long> updateAllByLastname(String lastname, int increment);
 
-		Mono<Person> findAndModifyByLastname(String lastname, Update update, Sort sort);
+		@org.springframework.data.mongodb.repository.Update( pipeline = {"{ '$set' : { 'visits' : { '$add' : [ '$visits', ?1 ] } } }"})
+		Mono<Void> findAndIncrementVisitsViaPipelineByLastname(String lastname, int increment);
 
-		Mono<Person> findOneAndModifyByFirstname(String firstname, Update update);
+		@org.springframework.data.mongodb.repository.Update("{ '$inc' : { 'visits' : ?#{[1]} } }")
+		Mono<Long> findAndIncrementVisitsUsingSpELByLastname(String lastname, int increment);
+
+		@org.springframework.data.mongodb.repository.Update("{ '$inc' : { 'visits' : 1 } }")
+		Mono<Person> findAndIncrementVisitsByFirstname(String firstname);
+
 	}
 
 	interface ReactiveContactRepository extends ReactiveMongoRepository<Contact, String> {}

@@ -41,6 +41,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.dao.IncorrectResultSizeDataAccessException;
+import org.springframework.dao.InvalidDataAccessApiUsageException;
 import org.springframework.data.domain.Example;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -60,7 +61,6 @@ import org.springframework.data.geo.Point;
 import org.springframework.data.geo.Polygon;
 import org.springframework.data.mongodb.core.MongoOperations;
 import org.springframework.data.mongodb.core.aggregation.AggregationResults;
-import org.springframework.data.mongodb.core.aggregation.AggregationUpdate;
 import org.springframework.data.mongodb.core.geo.GeoJsonPoint;
 import org.springframework.data.mongodb.core.query.BasicQuery;
 import org.springframework.data.mongodb.core.query.Criteria;
@@ -1478,66 +1478,54 @@ public abstract class AbstractPersonRepositoryIntegrationTests {
 	}
 
 	@Test // GH-2107
-	public void shouldSupportFindAndModifyForQueryDerivationWithCollectionResult() {
-
-		Person result = repository.findAndModifyByFirstname("Dave", new Update().inc("visits", 42));
-
-		assertThat(result).isEqualTo(dave);
-
-		Person dave = repository.findById(result.getId()).get();
-
-		assertThat(dave.visits).isEqualTo(42);
-	}
-
-	@Test // GH-2107
-	public void shouldSupportFindAndModifyForQueryDerivationWithPagedLookup() {
-
-		Person result = repository.findAndModifyByLastname("Matthews", new Update().inc("visits", 42),
-				Sort.by(Direction.DESC, "firstname"));
-
-		assertThat(result).isEqualTo(oliver);
-
-		Person oliver = repository.findById(result.getId()).get();
-		assertThat(oliver.visits).isEqualTo(42);
-
-		assertThat(repository.findById(dave.id).get().visits).isZero();
-	}
-
-	@Test // GH-2107
-	public void shouldSupportFindAndModifyWithAggregationUpdate() {
-
-		Person result = repository.findAndModifyByFirstname("Dave",
-				AggregationUpdate.newUpdate().set("visits").toValue(42));
-
-		assertThat(result).isEqualTo(dave);
-
-		Person dave = repository.findById(result.getId()).get();
-
-		assertThat(dave.visits).isEqualTo(42);
-	}
-
-	@Test // GH-2107
-	public void shouldSupportFindAndModifyForQueryDerivationWithSingleResult() {
-
-		Person result = repository.findOneAndModifyByFirstname("Dave", new Update().inc("visits", 1337));
-
-		assertThat(result).isEqualTo(dave); // still unmodified
-
-		Person dave = repository.findById(result.getId()).get();
-
-		assertThat(dave.visits).isEqualTo(1337);
-	}
-
-	@Test // GH-2107
 	void shouldAllowToUpdateAllElements() {
-		assertThat(repository.findAndUpdateAllByLastname("Matthews", new Update().inc("visits", 1337))).isEqualTo(2);
+		assertThat(repository.findAndUpdateViaMethodArgAllByLastname("Matthews", new Update().inc("visits", 1337))).isEqualTo(2);
+	}
+
+	@Test // GH-2107
+	void annotatedUpdateIsAppliedCorrectly() {
+
+		assertThat(repository.findAndIncrementVisitsByLastname("Matthews", 1337)).isEqualTo(2);
+
+		assertThat(repository.findByLastname("Matthews")).extracting(Person::getVisits).allMatch(it -> it.equals(1337));
+	}
+
+	@Test // GH-2107
+	void mixAnnotatedUpdateWithAnnotatedQuery() {
+
+		assertThat(repository.updateAllByLastname("Matthews", 1337)).isEqualTo(2);
+
+		assertThat(repository.findByLastname("Matthews")).extracting(Person::getVisits).allMatch(it -> it.equals(1337));
+	}
+
+	@Test // GH-2107
+	void annotatedUpdateWithSpELIsAppliedCorrectly() {
+
+		assertThat(repository.findAndIncrementVisitsUsingSpELByLastname("Matthews", 1337)).isEqualTo(2);
+
+		assertThat(repository.findByLastname("Matthews")).extracting(Person::getVisits).allMatch(it -> it.equals(1337));
+	}
+
+	@Test // GH-2107
+	void annotatedAggregationUpdateIsAppliedCorrectly() {
+
+		repository.findAndIncrementVisitsViaPipelineByLastname("Matthews", 1337);
+
+		assertThat(repository.findByLastname("Matthews")).extracting(Person::getVisits).allMatch(it -> it.equals(1337));
 	}
 
 	@Test // GH-2107
 	void shouldAllowToUpdateAllElementsWithVoidReturn() {
 
-		repository.findAndUpdateByLastname("Matthews", new Update().inc("visits", 1337));
+		repository.findAndUpdateViaMethodArgAllByLastname("Matthews", new Update().inc("visits", 1337));
 
 		assertThat(repository.findByLastname("Matthews")).extracting(Person::getVisits).allMatch(visits -> visits == 1337);
+	}
+
+	@Test // GH-2107
+	void annotatedUpdateMustNotAllowSingleResult() {
+
+		assertThatExceptionOfType(InvalidDataAccessApiUsageException.class)
+				.isThrownBy(() -> repository.findAndIncrementVisitsByFirstname("Dave"));
 	}
 }

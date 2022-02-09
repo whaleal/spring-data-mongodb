@@ -352,7 +352,5 @@ interface MongoQueryExecution {
 					.apply(updateDefinitionSupplier.get()) //
 					.all().getModifiedCount();
 		}
-
-
 	}
 }

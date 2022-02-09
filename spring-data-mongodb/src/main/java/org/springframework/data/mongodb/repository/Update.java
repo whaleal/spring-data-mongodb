@@ -21,6 +21,8 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+import org.springframework.core.annotation.AliasFor;
+
 /**
  * Annotation to declare update operators directly on repository methods. Both attributes allow using a placeholder
  * notation of {@code ?0}, {@code ?1} and so on. The update will be applied to documents matching the either method name
@@ -37,9 +39,19 @@ public @interface Update {
 	 * Takes a MongoDB JSON string to define the actual update to be executed.
 	 *
 	 * @return the MongoDB JSON string representation of the update. Empty string by default.
+	 * @see #update()
+	 */
+	@AliasFor("update")
+	String value() default "";
+
+	/**
+	 * Takes a MongoDB JSON string to define the actual update to be executed.
+	 *
+	 * @return the MongoDB JSON string representation of the update. Empty string by default.
 	 * @see <a href=
 	 *      "https://docs.mongodb.com/manual/tutorial/update-documents/">https://docs.mongodb.com/manual/tutorial/update-documents/</a>
 	 */
+	@AliasFor("value")
 	String update() default "";
 
 	/**
