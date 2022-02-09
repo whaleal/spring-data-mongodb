@@ -159,7 +159,7 @@ public abstract class AbstractMongoQuery implements RepositoryQuery {
 		}
 
 		if(method.isModifyingQuery()) {
-			return new UpdateExecution(executableUpdate, method, () -> createUpdate(accessor), accessor);
+			return new UpdateExecution(executableUpdate, method, () -> createUpdate(accessor), accessor, isLimiting());
 		}
 
 		if (method.isGeoNearQuery() && method.isPageQuery()) {

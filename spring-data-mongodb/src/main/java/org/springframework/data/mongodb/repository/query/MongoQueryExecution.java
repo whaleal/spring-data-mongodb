@@ -321,19 +321,22 @@ interface MongoQueryExecution {
 		private final MongoQueryMethod method;
 		private Supplier<UpdateDefinition> updateDefinitionSupplier;
 		private final MongoParameterAccessor accessor;
+		private final boolean limiting;
 
-		UpdateExecution(ExecutableUpdate<?> updateOps, MongoQueryMethod method, Supplier<UpdateDefinition> updateSupplier, MongoParameterAccessor accessor) {
+
+		UpdateExecution(ExecutableUpdate<?> updateOps, MongoQueryMethod method, Supplier<UpdateDefinition> updateSupplier, MongoParameterAccessor accessor, boolean limiting) {
 
 			this.updateOps = updateOps;
 			this.method = method;
 			this.updateDefinitionSupplier = updateSupplier;
 			this.accessor = accessor;
+			this.limiting = limiting;
 		}
 
 		@Override
 		public Object execute(Query query) {
 
-			if (method.isCollectionQuery() || method.isSliceQuery() || method.isPageQuery()) {
+			if (limiting || method.isCollectionQuery() || method.isSliceQuery() || method.isPageQuery()) {
 				throw new InvalidDataAccessApiUsageException(
 						"Derived update may return a numeric value (the number of updated documents), void or a single entity.");
 			}
@@ -341,12 +344,13 @@ interface MongoQueryExecution {
 			boolean isUpdateCountReturnType = ClassUtils.isAssignable(Number.class, method.getReturnedObjectType());
 			boolean isVoidReturnType = ClassUtils.isAssignable(Void.class, method.getReturnedObjectType());
 
-			TerminatingUpdate<?> update = updateOps.matching(query.with(accessor.getSort())).apply(updateDefinitionSupplier.get());
-
-			if (isUpdateCountReturnType || isVoidReturnType) {
-				return update.all().getModifiedCount();
+			if(!isUpdateCountReturnType && !isVoidReturnType) {
+				throw new InvalidDataAccessApiUsageException("meh");
 			}
-			return update.findAndModifyValue();
+
+			return updateOps.matching(query.with(accessor.getSort())) //
+					.apply(updateDefinitionSupplier.get()) //
+					.all().getModifiedCount();
 		}
 
 

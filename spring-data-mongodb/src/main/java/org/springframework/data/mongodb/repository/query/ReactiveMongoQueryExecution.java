@@ -15,27 +15,24 @@
  */
 package org.springframework.data.mongodb.repository.query;
 
-import com.mongodb.client.result.UpdateResult;
-import org.springframework.dao.InvalidDataAccessApiUsageException;
-import org.springframework.data.mongodb.core.ExecutableUpdateOperation.ExecutableUpdate;
-import org.springframework.data.mongodb.core.MongoOperations;
-import org.springframework.data.mongodb.core.ReactiveUpdateOperation.ReactiveUpdate;
-import org.springframework.data.mongodb.core.ReactiveUpdateOperation.TerminatingUpdate;
-import org.springframework.data.mongodb.core.query.UpdateDefinition;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import org.reactivestreams.Publisher;
 import org.springframework.core.convert.converter.Converter;
+import org.springframework.dao.InvalidDataAccessApiUsageException;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Range;
 import org.springframework.data.geo.Distance;
 import org.springframework.data.geo.GeoResult;
 import org.springframework.data.geo.Point;
 import org.springframework.data.mapping.model.EntityInstantiators;
+import org.springframework.data.mongodb.core.MongoOperations;
 import org.springframework.data.mongodb.core.ReactiveMongoOperations;
+import org.springframework.data.mongodb.core.ReactiveUpdateOperation.ReactiveUpdate;
 import org.springframework.data.mongodb.core.query.NearQuery;
 import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.UpdateDefinition;
 import org.springframework.data.repository.query.ResultProcessor;
 import org.springframework.data.repository.query.ReturnedType;
 import org.springframework.data.repository.util.ReactiveWrappers;
@@ -44,6 +41,8 @@ import org.springframework.data.util.TypeInformation;
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
+
+import com.mongodb.client.result.UpdateResult;
 
 /**
  * Set of classes to contain query execution strategies. Depending (mostly) on the return type of a
@@ -158,8 +157,10 @@ interface ReactiveMongoQueryExecution {
 	/**
 	 * {@link MongoQueryExecution} updating documents matching the query.
 	 * <p>
-	 * Depending on the result type (numeric value | {@literal void}) an {@link MongoOperations#updateMulti(Query, UpdateDefinition, Class)} is performed.
-	 * In case the {@link AbstractMongoQuery query} is {@link AbstractMongoQuery#isLimiting()} the operation will call {@link MongoOperations#updateFirst(Query, UpdateDefinition, Class)}.
+	 * Depending on the result type (numeric value | {@literal void}) an
+	 * {@link MongoOperations#updateMulti(Query, UpdateDefinition, Class)} is performed. In case the
+	 * {@link AbstractMongoQuery query} is {@link AbstractMongoQuery#isLimiting()} the operation will call
+	 * {@link MongoOperations#updateFirst(Query, UpdateDefinition, Class)}.
 	 * <p>
 	 * For methods returning a domain specific type {@link MongoOperations#findAndModify(Query, UpdateDefinition, Class)}
 	 *
@@ -185,7 +186,7 @@ interface ReactiveMongoQueryExecution {
 		@Override
 		public Publisher<? extends Object> execute(Query query, Class<?> type, String collection) {
 
-			if (method.isCollectionQuery() || method.isSliceQuery() || method.isPageQuery()) {
+			if (limiting || method.isCollectionQuery() || method.isSliceQuery() || method.isPageQuery()) {
 				throw new InvalidDataAccessApiUsageException(
 						"Derived update may return a numeric value (the number of updated documents), void or a single entity.");
 			}
@@ -194,18 +195,19 @@ interface ReactiveMongoQueryExecution {
 			if(ReactiveWrappers.usesReactiveType(resultType)) {
 				resultType = method.getReturnType().getComponentType().getType();
 			}
+
 			boolean isUpdateCountReturnType = ClassUtils.isAssignable(Number.class, resultType);
 			boolean isVoidReturnType = ClassUtils.isAssignable(Void.class, resultType);
 
-			TerminatingUpdate<?> update = updateOps.inCollection(collection).matching(query.with(accessor.getSort())).apply(accessor.getUpdate());
-
-			if (isUpdateCountReturnType || isVoidReturnType) {
-				if (limiting) {
-					return update.first().map(UpdateResult::getModifiedCount);
-				}
-				return update.all().map(UpdateResult::getModifiedCount);
+			if(!isUpdateCountReturnType && !isVoidReturnType) {
+				throw new InvalidDataAccessApiUsageException("meh");
 			}
-			return update.findAndModify();
+
+			return updateOps.inCollection(collection) //
+					.matching(query.with(accessor.getSort())) // actually we could do it unsorted
+					.apply(accessor.getUpdate()) //
+					.all() //
+					.map(UpdateResult::getModifiedCount);
 		}
 	}
 
