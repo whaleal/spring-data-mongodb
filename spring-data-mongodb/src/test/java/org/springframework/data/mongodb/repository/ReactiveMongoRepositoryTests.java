@@ -23,10 +23,6 @@ import static org.springframework.data.mongodb.test.util.Assertions.assertThat;
 
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.springframework.dao.InvalidDataAccessApiUsageException;
-import org.springframework.data.mongodb.core.aggregation.AggregationUpdate;
-import org.springframework.data.mongodb.core.query.Update;
-import org.springframework.data.mongodb.core.query.UpdateDefinition;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -48,6 +44,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.dao.IncorrectResultSizeDataAccessException;
+import org.springframework.dao.InvalidDataAccessApiUsageException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -62,6 +59,8 @@ import org.springframework.data.mongodb.core.CollectionOptions;
 import org.springframework.data.mongodb.core.ReactiveMongoOperations;
 import org.springframework.data.mongodb.core.ReactiveMongoTemplate;
 import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.query.Update;
+import org.springframework.data.mongodb.core.query.UpdateDefinition;
 import org.springframework.data.mongodb.repository.Person.Sex;
 import org.springframework.data.mongodb.repository.support.ReactiveMongoRepositoryFactory;
 import org.springframework.data.mongodb.repository.support.SimpleReactiveMongoRepository;
@@ -704,6 +703,22 @@ class ReactiveMongoRepositoryTests {
 								.verifyError(InvalidDataAccessApiUsageException.class);
 	}
 
+	@Test // GH-2107
+	void allowsToUseComplexTypesInUpdate() {
+
+		Address address = new Address("1007 Mountain Drive", "53540", "Gotham");
+
+		repository.findAndPushShippingAddressByEmail(dave.getEmail(), address) //
+				.as(StepVerifier::create) //
+				.expectNext(1L) //
+				.verifyComplete();
+
+		repository.findById(dave.getId()).map(Person::getShippingAddresses)
+				.as(StepVerifier::create)
+				.consumeNextWith(it -> assertThat(it).containsExactly(address))
+				.verifyComplete();
+	}
+
 	interface ReactivePersonRepository
 			extends ReactiveMongoRepository<Person, String>, ReactiveQuerydslPredicateExecutor<Person> {
 
@@ -799,6 +814,8 @@ class ReactiveMongoRepositoryTests {
 		@org.springframework.data.mongodb.repository.Update("{ '$inc' : { 'visits' : 1 } }")
 		Mono<Person> findAndIncrementVisitsByFirstname(String firstname);
 
+		@org.springframework.data.mongodb.repository.Update("{ '$push' : { 'shippingAddresses' : ?1 } }")
+		Mono<Long> findAndPushShippingAddressByEmail(String email, Address address);
 	}
 
 	interface ReactiveContactRepository extends ReactiveMongoRepository<Contact, String> {}

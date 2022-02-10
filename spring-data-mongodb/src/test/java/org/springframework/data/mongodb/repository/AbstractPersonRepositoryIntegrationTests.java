@@ -1528,4 +1528,13 @@ public abstract class AbstractPersonRepositoryIntegrationTests {
 		assertThatExceptionOfType(InvalidDataAccessApiUsageException.class)
 				.isThrownBy(() -> repository.findAndIncrementVisitsByFirstname("Dave"));
 	}
+
+	@Test // GH-2107
+	void allowsToUseComplexTypesInUpdate() {
+
+		Address address = new Address("1007 Mountain Drive", "53540", "Gotham");
+
+		assertThat(repository.findAndPushShippingAddressByEmail(dave.getEmail(), address)).isEqualTo(1);
+		assertThat(repository.findById(dave.getId()).map(Person::getShippingAddresses)).contains(Collections.singleton(address));
+	}
 }
