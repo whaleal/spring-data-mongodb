@@ -86,6 +86,13 @@ public class MongoQueryMethod extends QueryMethod {
 		this.method = method;
 		this.mappingContext = mappingContext;
 		this.annotationCache = new ConcurrentReferenceHashMap<>();
+		
+		if(hasAnnotatedUpdate()) {
+			if(!StringUtils.hasText(getUpdateSource().update()) && ObjectUtils.isEmpty(getUpdateSource().pipeline())) {
+				throw new IllegalStateException(String.format("Update method must define either 'Update#update' or 'Update#pipeline' attribute. "
+						+ "Offending method: %s", method));
+			}
+		}
 	}
 
 	/*

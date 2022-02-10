@@ -268,6 +268,15 @@ public class MongoQueryMethodUnitTests {
 		assertThat(method.isModifyingQuery()).isTrue();
 	}
 
+	@Test // GH-2107
+	void queryCreationFailsOnInvalidUpdate() throws Exception {
+
+		assertThatExceptionOfType(IllegalStateException.class) //
+				.isThrownBy(() -> queryMethod(InvalidUpdateMethodRepo.class, "findAndUpdateByLastname", String.class)) //
+				.withMessageContaining("Update") //
+				.withMessageContaining("findAndUpdateByLastname");
+	}
+
 	private MongoQueryMethod queryMethod(Class<?> repository, String name, Class<?>... parameters) throws Exception {
 
 		Method method = repository.getMethod(name, parameters);
@@ -342,6 +351,12 @@ public class MongoQueryMethodUnitTests {
 		List<Person> method();
 
 		Customer methodReturningAnInterface();
+	}
+
+	interface InvalidUpdateMethodRepo extends Repository<Person, Long> {
+
+		@org.springframework.data.mongodb.repository.Update
+		void findAndUpdateByLastname(String lastname);
 	}
 
 	interface Customer {
