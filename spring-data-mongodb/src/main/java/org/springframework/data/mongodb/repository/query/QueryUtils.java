@@ -88,14 +88,32 @@ class QueryUtils {
 		return collation == null ? query : query.collation(collation);
 	}
 
-	static int indexOfAssignableIndex(Class<?> type, Class<?>[] parameters) {
-		return indexOfAssignableIndex(type, Arrays.asList(parameters));
+	/**
+	 * Get the first index of the parameter that can be assigned to the given type.
+	 *
+	 * @param type the type to look for.
+	 * @param parameters the actual parameters.
+	 * @return -1 if not found.
+	 * @since 3.4
+	 */
+	static int indexOfAssignableParameter(Class<?> type, Class<?>[] parameters) {
+		return indexOfAssignableParameter(type, Arrays.asList(parameters));
 	}
-	static int indexOfAssignableIndex(Class<?> type, List<Class<?>> parameters) {
+
+	/**
+	 * Get the first index of the parameter that can be assigned to the given type.
+	 *
+	 * @param type the type to look for.
+	 * @param parameters the actual parameters.
+	 * @return -1 if not found.
+	 * @since 3.4
+	 */
+	static int indexOfAssignableParameter(Class<?> type, List<Class<?>> parameters) {
 
 		if(parameters.isEmpty()) {
 			return -1;
 		}
+		
 		int i = 0;
 		for(Class<?> parameterType : parameters) {
 			if(ClassUtils.isAssignable(type, parameterType)) {

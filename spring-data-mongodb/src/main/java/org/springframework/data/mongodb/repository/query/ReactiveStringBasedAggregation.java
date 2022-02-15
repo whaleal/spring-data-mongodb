@@ -18,7 +18,6 @@ package org.springframework.data.mongodb.repository.query;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import org.bson.Document;
@@ -31,11 +30,8 @@ import org.springframework.data.mongodb.core.aggregation.TypedAggregation;
 import org.springframework.data.mongodb.core.convert.MongoConverter;
 import org.springframework.data.mongodb.core.mapping.MongoSimpleTypes;
 import org.springframework.data.mongodb.core.query.Query;
-import org.springframework.data.mongodb.util.json.ParameterBindingContext;
-import org.springframework.data.mongodb.util.json.ParameterBindingDocumentCodec;
 import org.springframework.data.repository.query.ReactiveQueryMethodEvaluationContextProvider;
 import org.springframework.data.repository.query.ResultProcessor;
-import org.springframework.data.spel.ExpressionDependencies;
 import org.springframework.expression.ExpressionParser;
 import org.springframework.util.ClassUtils;
 
@@ -122,7 +118,7 @@ public class ReactiveStringBasedAggregation extends AbstractReactiveMongoQuery {
 	}
 
 	private Mono<List<AggregationOperation>> computePipeline(ConvertingParameterAccessor accessor) {
-		return computePipeline(getQueryMethod().getAnnotatedAggregation(), accessor);
+		return parseAggregationPipeline(getQueryMethod().getAnnotatedAggregation(), accessor);
 	}
 
 	private AggregationOptions computeOptions(MongoQueryMethod method, ConvertingParameterAccessor accessor) {

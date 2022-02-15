@@ -70,7 +70,7 @@ public class MongoParameters extends Parameters<MongoParameters, MongoParameter>
 		this.rangeIndex = getTypeIndex(parameterTypeInfo, Range.class, Distance.class);
 		this.maxDistanceIndex = this.rangeIndex == -1 ? getTypeIndex(parameterTypeInfo, Distance.class, null) : -1;
 		this.collationIndex = getTypeIndex(parameterTypeInfo, Collation.class, null);
-		this.updateIndex = QueryUtils.indexOfAssignableIndex(UpdateDefinition.class, parameterTypes);
+		this.updateIndex = QueryUtils.indexOfAssignableParameter(UpdateDefinition.class, parameterTypes);
 
 		int index = findNearIndexInParameters(method);
 		if (index == -1 && isGeoNearMethod) {

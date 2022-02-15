@@ -414,7 +414,7 @@ public class MongoQueryMethod extends QueryMethod {
 
 	private boolean resolveModifyingQueryIndicators() {
 		return hasAnnotatedUpdate()
-				|| QueryUtils.indexOfAssignableIndex(UpdateDefinition.class, method.getParameterTypes()) != -1;
+				|| QueryUtils.indexOfAssignableParameter(UpdateDefinition.class, method.getParameterTypes()) != -1;
 	}
 
 	/**

@@ -26,7 +26,6 @@ import org.bson.Document;
 import org.bson.codecs.configuration.CodecRegistry;
 import org.reactivestreams.Publisher;
 import org.springframework.core.convert.converter.Converter;
-import org.springframework.dao.InvalidDataAccessApiUsageException;
 import org.springframework.data.mapping.model.EntityInstantiators;
 import org.springframework.data.mapping.model.SpELExpressionEvaluator;
 import org.springframework.data.mongodb.core.MongoOperations;
@@ -198,10 +197,15 @@ public abstract class AbstractReactiveMongoQuery implements RepositoryQuery {
 
 		if (isDeleteQuery()) {
 			return new DeleteExecution(operations, method);
-		} else if(method.isModifyingQuery()) {
-			return new UpdateExecution(updateOps, method, accessor, createUpdate(accessor), isLimiting());
-		}
-		else if (method.isGeoNearQuery()) {
+		} else if (method.isModifyingQuery()) {
+
+			if (isLimiting()) {
+				throw new IllegalStateException(
+						String.format("Update method must not be limiting. Offending method: %s", method));
+			}
+
+			return new UpdateExecution(updateOps, method, accessor, createUpdate(accessor));
+		} else if (method.isGeoNearQuery()) {
 			return new GeoNearExecution(operations, accessor, method.getReturnType());
 		} else if (isTailable(method)) {
 			return (q, t, c) -> operation.matching(q.with(accessor.getPageable())).tail();
@@ -282,30 +286,51 @@ public abstract class AbstractReactiveMongoQuery implements RepositoryQuery {
 		return createQuery(accessor).map(this::applyQueryMetaAttributesWhenPresent);
 	}
 
+	/**
+	 * Retrieves the {@link UpdateDefinition update} from the given
+	 * {@link org.springframework.data.mongodb.repository.query.MongoParameterAccessor#getUpdate() accessor} or creates
+	 * one via by parsing the annotated statement extracted from {@link Update}.
+	 *
+	 * @param accessor never {@literal null}.
+	 * @return the computed {@link UpdateDefinition}.
+	 * @throws IllegalStateException if no update could be found.
+	 * @since 3.4
+	 */
 	protected Mono<UpdateDefinition> createUpdate(MongoParameterAccessor accessor) {
 
-		if(accessor.getUpdate() != null) {
+		if (accessor.getUpdate() != null) {
 			return Mono.just(accessor.getUpdate());
 		}
 
-		if(method.hasAnnotatedUpdate()) {
+		if (method.hasAnnotatedUpdate()) {
 			Update updateSource = method.getUpdateSource();
-			if(StringUtils.hasText(updateSource.update())) {
+			if (StringUtils.hasText(updateSource.update())) {
 
 				String updateJson = updateSource.update();
-				return getCodecRegistry().map(ParameterBindingDocumentCodec::new)
-						.flatMap(codec -> expressionEvaluator(updateJson, accessor, codec))
-						.map(it -> decode(it.getT1(), updateJson, accessor, it.getT2()))
+				return getParameterBindingCodec() //
+						.flatMap(codec -> expressionEvaluator(updateJson, accessor, codec)) //
+						.map(it -> decode(it.getT1(), updateJson, accessor, it.getT2())) //
 						.map(BasicUpdate::fromDocument);
 			}
-			if(!ObjectUtils.isEmpty(updateSource.pipeline())) {
-				return computePipeline(updateSource.pipeline(), accessor).map(AggregationUpdate::from);
+			if (!ObjectUtils.isEmpty(updateSource.pipeline())) {
+				return parseAggregationPipeline(updateSource.pipeline(), accessor).map(AggregationUpdate::from);
 			}
 		}
-		throw new InvalidDataAccessApiUsageException("oh no - this is bad.");
+
+		throw new IllegalStateException(String.format("No Update provided for method %s.", method));
 	}
 
-	protected Mono<List<AggregationOperation>> computePipeline(String[] pipeline, MongoParameterAccessor accessor) {
+	/**
+	 * Parse the given aggregation pipeline stages applying values to placeholders to compute the actual list of
+	 * {@link AggregationOperation operations}.
+	 *
+	 * @param pipeline must not be {@literal null}.
+	 * @param accessor must not be {@literal null}.
+	 * @return the parsed aggregation pipeline.
+	 * @since 3.4
+	 */
+	protected Mono<List<AggregationOperation>> parseAggregationPipeline(String[] pipeline,
+			MongoParameterAccessor accessor) {
 
 		return getCodecRegistry().map(ParameterBindingDocumentCodec::new).flatMap(codec -> {
 
@@ -321,23 +346,33 @@ public abstract class AbstractReactiveMongoQuery implements RepositoryQuery {
 			ParameterBindingDocumentCodec codec) {
 
 		return expressionEvaluator(source, accessor, codec).map(it -> {
-			return ctx -> ctx.getMappedObject(decode(it.getT1(), source, accessor, it.getT2()), getQueryMethod().getDomainClass());
+			return ctx -> ctx.getMappedObject(decode(it.getT1(), source, accessor, it.getT2()),
+					getQueryMethod().getDomainClass());
 		});
 	}
 
-	private Mono<Tuple2<SpELExpressionEvaluator, ParameterBindingDocumentCodec>> expressionEvaluator(String source, MongoParameterAccessor accessor, ParameterBindingDocumentCodec codec) {
+	private Mono<Tuple2<SpELExpressionEvaluator, ParameterBindingDocumentCodec>> expressionEvaluator(String source,
+			MongoParameterAccessor accessor, ParameterBindingDocumentCodec codec) {
 
 		ExpressionDependencies dependencies = codec.captureExpressionDependencies(source, accessor::getBindableValue,
 				expressionParser);
 		return getSpelEvaluatorFor(dependencies, accessor).zipWith(Mono.just(codec));
 	}
 
-	private Document decode(SpELExpressionEvaluator expressionEvaluator, String source, MongoParameterAccessor accessor, ParameterBindingDocumentCodec codec) {
+	private Document decode(SpELExpressionEvaluator expressionEvaluator, String source, MongoParameterAccessor accessor,
+			ParameterBindingDocumentCodec codec) {
 
-		ParameterBindingContext bindingContext = new ParameterBindingContext(accessor::getBindableValue, expressionEvaluator);
+		ParameterBindingContext bindingContext = new ParameterBindingContext(accessor::getBindableValue,
+				expressionEvaluator);
 		return codec.decode(source, bindingContext);
 	}
 
+	/**
+	 * Obtain the {@link ParameterBindingDocumentCodec} used for parsing JSON expressions.
+	 *
+	 * @return never {@literal null}.
+	 * @since 3.4
+	 */
 	protected Mono<ParameterBindingDocumentCodec> getParameterBindingCodec() {
 		return getCodecRegistry().map(ParameterBindingDocumentCodec::new);
 	}
@@ -350,6 +385,23 @@ public abstract class AbstractReactiveMongoQuery implements RepositoryQuery {
 	 * @param accessor must not be {@literal null}.
 	 * @return a {@link Mono} emitting the {@link SpELExpressionEvaluator} when ready.
 	 * @since 2.4
+	 * @deprecated in favor of {@link #getSpelEvaluatorFor(ExpressionDependencies, MongoParameterAccessor)}
+	 */
+	@Deprecated
+	protected Mono<SpELExpressionEvaluator> getSpelEvaluatorFor(ExpressionDependencies dependencies,
+			ConvertingParameterAccessor accessor) {
+
+		return getSpelEvaluatorFor(dependencies, (MongoParameterAccessor) accessor);
+	}
+
+	/**
+	 * Obtain a {@link Mono publisher} emitting the {@link SpELExpressionEvaluator} suitable to evaluate expressions
+	 * backed by the given dependencies.
+	 *
+	 * @param dependencies must not be {@literal null}.
+	 * @param accessor must not be {@literal null}.
+	 * @return a {@link Mono} emitting the {@link SpELExpressionEvaluator} when ready.
+	 * @since 3.4
 	 */
 	protected Mono<SpELExpressionEvaluator> getSpelEvaluatorFor(ExpressionDependencies dependencies,
 			MongoParameterAccessor accessor) {

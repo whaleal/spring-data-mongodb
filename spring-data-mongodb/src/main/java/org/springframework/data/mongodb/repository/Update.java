@@ -26,7 +26,7 @@ import org.springframework.core.annotation.AliasFor;
 /**
  * Annotation to declare update operators directly on repository methods. Both attributes allow using a placeholder
  * notation of {@code ?0}, {@code ?1} and so on. The update will be applied to documents matching the either method name
- * derived or annotated query, but to any custom implementation methods.
+ * derived or annotated query, but not to any custom implementation methods.
  *
  * @author Christoph Strobl
  */
@@ -55,11 +55,11 @@ public @interface Update {
 	String update() default "";
 
 	/**
-	 * Takes a MongoDB Json string representation of an aggregation pipeline to define the update stages to be executed.
+	 * Takes a MongoDB JSON string representation of an aggregation pipeline to define the update stages to be executed.
 	 * <p>
 	 * This allows to e.g. define update statement that can evaluate conditionals based on a field value, etc.
 	 *
-	 * @return the MongoDB JSON string representation of the update. Empty string by default.
+	 * @return the MongoDB JSON string representation of the update pipeline. Empty array by default.
 	 * @see <a href=
 	 *      "https://docs.mongodb.com/manual/tutorial/update-documents-with-aggregation-pipeline/">https://docs.mongodb.com/manual/tutorial/update-documents-with-aggregation-pipeline</a>
 	 */

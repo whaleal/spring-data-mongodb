@@ -156,42 +156,27 @@ interface ReactiveMongoQueryExecution {
 
 	/**
 	 * {@link MongoQueryExecution} updating documents matching the query.
-	 * <p>
-	 * Depending on the result type (numeric value | {@literal void}) an
-	 * {@link MongoOperations#updateMulti(Query, UpdateDefinition, Class)} is performed. In case the
-	 * {@link AbstractMongoQuery query} is {@link AbstractMongoQuery#isLimiting()} the operation will call
-	 * {@link MongoOperations#updateFirst(Query, UpdateDefinition, Class)}.
-	 * <p>
-	 * For methods returning a domain specific type {@link MongoOperations#findAndModify(Query, UpdateDefinition, Class)}
 	 *
 	 * @author Christph Strobl
-	 * @since
+	 * @since 3.4
 	 */
 	final class UpdateExecution implements ReactiveMongoQueryExecution {
 
 		private final ReactiveUpdate<?> updateOps;
 		private final MongoQueryMethod method;
 		private final MongoParameterAccessor accessor;
-		private boolean limiting;
 		private Mono<UpdateDefinition> update;
 
-		UpdateExecution(ReactiveUpdate<?> updateOps, ReactiveMongoQueryMethod method, MongoParameterAccessor accessor, Mono<UpdateDefinition> update,
-				boolean limiting) {
+		UpdateExecution(ReactiveUpdate<?> updateOps, ReactiveMongoQueryMethod method, MongoParameterAccessor accessor, Mono<UpdateDefinition> update) {
 
 			this.updateOps = updateOps;
 			this.method = method;
 			this.accessor = accessor;
-			this.limiting = limiting;
 			this.update = update;
 		}
 
 		@Override
 		public Publisher<? extends Object> execute(Query query, Class<?> type, String collection) {
-
-			if (limiting || method.isCollectionQuery() || method.isSliceQuery() || method.isPageQuery()) {
-				throw new InvalidDataAccessApiUsageException(
-						"Derived update may return a numeric value (the number of updated documents), void or a single entity.");
-			}
 
 			Class<?> resultType = method.getReturnedObjectType();
 			if(ReactiveWrappers.usesReactiveType(resultType)) {
@@ -202,7 +187,8 @@ interface ReactiveMongoQueryExecution {
 			boolean isVoidReturnType = ClassUtils.isAssignable(Void.class, resultType);
 
 			if(!isUpdateCountReturnType && !isVoidReturnType) {
-				throw new InvalidDataAccessApiUsageException("meh");
+				throw new InvalidDataAccessApiUsageException(
+						String.format("Update method return type can be void or numeric. Offending method %s.", method));
 			}
 
 			return update.flatMap(it -> updateOps.inCollection(collection) //

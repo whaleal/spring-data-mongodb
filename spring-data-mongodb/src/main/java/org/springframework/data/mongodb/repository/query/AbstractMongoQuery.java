@@ -20,7 +20,6 @@ import java.util.List;
 
 import org.bson.Document;
 import org.bson.codecs.configuration.CodecRegistry;
-import org.springframework.dao.InvalidDataAccessApiUsageException;
 import org.springframework.data.mapping.model.SpELExpressionEvaluator;
 import org.springframework.data.mongodb.core.ExecutableFindOperation.ExecutableFind;
 import org.springframework.data.mongodb.core.ExecutableFindOperation.FindWithQuery;
@@ -73,7 +72,8 @@ public abstract class AbstractMongoQuery implements RepositoryQuery {
 	private final ExecutableUpdate<?> executableUpdate;
 	private final ExpressionParser expressionParser;
 	private final QueryMethodEvaluationContextProvider evaluationContextProvider;
-	private final Lazy<ParameterBindingDocumentCodec> codec = Lazy.of(() -> new ParameterBindingDocumentCodec(getCodecRegistry()));
+	private final Lazy<ParameterBindingDocumentCodec> codec = Lazy
+			.of(() -> new ParameterBindingDocumentCodec(getCodecRegistry()));
 
 	/**
 	 * Creates a new {@link AbstractMongoQuery} from the given {@link MongoQueryMethod} and {@link MongoOperations}.
@@ -154,13 +154,14 @@ public abstract class AbstractMongoQuery implements RepositoryQuery {
 
 	private MongoQueryExecution getExecution(ConvertingParameterAccessor accessor, FindWithQuery<?> operation) {
 
-		if(isDeleteQuery()) {
+		if (isDeleteQuery()) {
 			return new DeleteExecution(operations, method);
 		}
 
-		if(method.isModifyingQuery()) {
+		if (method.isModifyingQuery()) {
 			if (isLimiting()) {
-				throw new IllegalStateException(String.format("Update method must not be limiting. Offending method: %s", method));
+				throw new IllegalStateException(
+						String.format("Update method must not be limiting. Offending method: %s", method));
 			}
 			return new UpdateExecution(executableUpdate, method, () -> createUpdate(accessor), accessor);
 		}
@@ -242,25 +243,47 @@ public abstract class AbstractMongoQuery implements RepositoryQuery {
 		return applyQueryMetaAttributesWhenPresent(createQuery(accessor));
 	}
 
+	/**
+	 * Retrieves the {@link UpdateDefinition update} from the given
+	 * {@link org.springframework.data.mongodb.repository.query.MongoParameterAccessor#getUpdate() accessor} or creates
+	 * one via by parsing the annotated statement extracted from {@link Update}.
+	 *
+	 * @param accessor never {@literal null}.
+	 * @return the computed {@link UpdateDefinition}.
+	 * @throws IllegalStateException if no update could be found.
+	 * @since 3.4
+	 */
 	protected UpdateDefinition createUpdate(ConvertingParameterAccessor accessor) {
 
-		if(accessor.getUpdate() != null) {
+		if (accessor.getUpdate() != null) {
 			return accessor.getUpdate();
 		}
 
-		if(method.hasAnnotatedUpdate()) {
+		if (method.hasAnnotatedUpdate()) {
+
 			Update updateSource = method.getUpdateSource();
-			if(StringUtils.hasText(updateSource.update())) {
+			if (StringUtils.hasText(updateSource.update())) {
 				return new BasicUpdate(bindParameters(updateSource.update(), accessor));
 			}
-			if(!ObjectUtils.isEmpty(updateSource.pipeline())) {
-				return AggregationUpdate.from(computePipeline(updateSource.pipeline(), accessor));
+			if (!ObjectUtils.isEmpty(updateSource.pipeline())) {
+				return AggregationUpdate.from(parseAggregationPipeline(updateSource.pipeline(), accessor));
 			}
 		}
-		throw new InvalidDataAccessApiUsageException("oh no - this is bad.");
+
+		throw new IllegalStateException(String.format("No Update provided for method %s.", method));
 	}
 
-	protected List<AggregationOperation> computePipeline(String[] sourcePipeline, ConvertingParameterAccessor accessor) {
+	/**
+	 * Parse the given aggregation pipeline stages applying values to placeholders to compute the actual list of
+	 * {@link AggregationOperation operations}.
+	 *
+	 * @param sourcePipeline must not be {@literal null}.
+	 * @param accessor must not be {@literal null}.
+	 * @return the parsed aggregation pipeline.
+	 * @since 3.4
+	 */
+	protected List<AggregationOperation> parseAggregationPipeline(String[] sourcePipeline,
+			ConvertingParameterAccessor accessor) {
 
 		List<AggregationOperation> stages = new ArrayList<>(sourcePipeline.length);
 		for (String source : sourcePipeline) {
@@ -281,16 +304,29 @@ public abstract class AbstractMongoQuery implements RepositoryQuery {
 		return decode(source, prepareBindingContext(source, accessor));
 	}
 
-	@NonNull
+	/**
+	 * Create the {@link ParameterBindingContext binding context} used for SpEL evaluation.
+	 *
+	 * @param source the JSON source.
+	 * @param accessor value provider for parameter binding.
+	 * @return never {@literal null}.
+	 * @since 3.4
+	 */
 	protected ParameterBindingContext prepareBindingContext(String source, ConvertingParameterAccessor accessor) {
 
-		ExpressionDependencies dependencies = getParameterBindingCodec().captureExpressionDependencies(source, accessor::getBindableValue,
-				expressionParser);
+		ExpressionDependencies dependencies = getParameterBindingCodec().captureExpressionDependencies(source,
+				accessor::getBindableValue, expressionParser);
 
 		SpELExpressionEvaluator evaluator = getSpELExpressionEvaluatorFor(dependencies, accessor);
 		return new ParameterBindingContext(accessor::getBindableValue, evaluator);
 	}
 
+	/**
+	 * Obtain the {@link ParameterBindingDocumentCodec} used for parsing JSON expressions.
+	 *
+	 * @return never {@literal null}.
+	 * @since 3.4
+	 */
 	protected ParameterBindingDocumentCodec getParameterBindingCodec() {
 		return codec.get();
 	}

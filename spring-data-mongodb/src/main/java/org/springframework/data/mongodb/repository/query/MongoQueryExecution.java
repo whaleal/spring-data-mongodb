@@ -37,7 +37,6 @@ import org.springframework.data.mongodb.core.MongoOperations;
 import org.springframework.data.mongodb.core.query.NearQuery;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.UpdateDefinition;
-import org.springframework.data.repository.query.QueryMethod;
 import org.springframework.data.repository.support.PageableExecutionUtils;
 import org.springframework.data.util.TypeInformation;
 import org.springframework.util.Assert;
@@ -329,13 +328,12 @@ interface MongoQueryExecution {
 		@Override
 		public Object execute(Query query) {
 
-
-
 			boolean isUpdateCountReturnType = ClassUtils.isAssignable(Number.class, method.getReturnedObjectType());
 			boolean isVoidReturnType = ClassUtils.isAssignable(Void.class, method.getReturnedObjectType());
 
 			if (!isUpdateCountReturnType && !isVoidReturnType) {
-				throw new InvalidDataAccessApiUsageException("meh");
+				throw new InvalidDataAccessApiUsageException(
+						String.format("Update method return type can be void or numeric. Offending method %s.", method));
 			}
 
 			return updateOps.matching(query.with(accessor.getSort())) //
