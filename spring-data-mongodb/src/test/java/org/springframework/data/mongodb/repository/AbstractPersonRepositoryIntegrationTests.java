@@ -1507,6 +1507,7 @@ public abstract class AbstractPersonRepositoryIntegrationTests {
 	}
 
 	@Test // GH-2107
+	@EnableIfMongoServerVersion(isGreaterThanEqual = "4.2")
 	void annotatedAggregationUpdateIsAppliedCorrectly() {
 
 		repository.findAndIncrementVisitsViaPipelineByLastname("Matthews", 1337);

@@ -23,6 +23,7 @@ import static org.springframework.data.mongodb.test.util.Assertions.assertThat;
 
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.data.mongodb.test.util.EnableIfMongoServerVersion;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -667,6 +668,7 @@ class ReactiveMongoRepositoryTests {
 	}
 
 	@Test // GH-2107
+	@EnableIfMongoServerVersion(isGreaterThanEqual = "4.2")
 	void annotatedAggregationUpdateIsAppliedCorrectly() {
 
 		repository.findAndIncrementVisitsViaPipelineByLastname("Matthews", 1337)
