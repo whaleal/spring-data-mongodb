@@ -18,7 +18,6 @@ package org.springframework.data.mongodb.repository.query;
 import java.util.List;
 import java.util.function.Supplier;
 
-import org.springframework.dao.InvalidDataAccessApiUsageException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Range;
@@ -327,14 +326,6 @@ interface MongoQueryExecution {
 
 		@Override
 		public Object execute(Query query) {
-
-			boolean isUpdateCountReturnType = ClassUtils.isAssignable(Number.class, method.getReturnedObjectType());
-			boolean isVoidReturnType = ClassUtils.isAssignable(Void.class, method.getReturnedObjectType());
-
-			if (!isUpdateCountReturnType && !isVoidReturnType) {
-				throw new InvalidDataAccessApiUsageException(
-						String.format("Update method return type can be void or numeric. Offending method %s.", method));
-			}
 
 			return updateOps.matching(query.with(accessor.getSort())) //
 					.apply(updateDefinitionSupplier.get()) //

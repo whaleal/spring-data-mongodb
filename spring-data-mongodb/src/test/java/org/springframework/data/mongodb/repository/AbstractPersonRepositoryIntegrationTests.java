@@ -1524,13 +1524,6 @@ public abstract class AbstractPersonRepositoryIntegrationTests {
 	}
 
 	@Test // GH-2107
-	void annotatedUpdateMustNotAllowSingleResult() {
-
-		assertThatExceptionOfType(InvalidDataAccessApiUsageException.class)
-				.isThrownBy(() -> repository.findAndIncrementVisitsByFirstname("Dave"));
-	}
-
-	@Test // GH-2107
 	void allowsToUseComplexTypesInUpdate() {
 
 		Address address = new Address("1007 Mountain Drive", "53540", "Gotham");

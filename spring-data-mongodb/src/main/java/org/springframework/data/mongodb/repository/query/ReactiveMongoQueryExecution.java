@@ -20,14 +20,12 @@ import reactor.core.publisher.Mono;
 
 import org.reactivestreams.Publisher;
 import org.springframework.core.convert.converter.Converter;
-import org.springframework.dao.InvalidDataAccessApiUsageException;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Range;
 import org.springframework.data.geo.Distance;
 import org.springframework.data.geo.GeoResult;
 import org.springframework.data.geo.Point;
 import org.springframework.data.mapping.model.EntityInstantiators;
-import org.springframework.data.mongodb.core.MongoOperations;
 import org.springframework.data.mongodb.core.ReactiveMongoOperations;
 import org.springframework.data.mongodb.core.ReactiveUpdateOperation.ReactiveUpdate;
 import org.springframework.data.mongodb.core.query.NearQuery;
@@ -167,7 +165,8 @@ interface ReactiveMongoQueryExecution {
 		private final MongoParameterAccessor accessor;
 		private Mono<UpdateDefinition> update;
 
-		UpdateExecution(ReactiveUpdate<?> updateOps, ReactiveMongoQueryMethod method, MongoParameterAccessor accessor, Mono<UpdateDefinition> update) {
+		UpdateExecution(ReactiveUpdate<?> updateOps, ReactiveMongoQueryMethod method, MongoParameterAccessor accessor,
+				Mono<UpdateDefinition> update) {
 
 			this.updateOps = updateOps;
 			this.method = method;
@@ -177,19 +176,6 @@ interface ReactiveMongoQueryExecution {
 
 		@Override
 		public Publisher<? extends Object> execute(Query query, Class<?> type, String collection) {
-
-			Class<?> resultType = method.getReturnedObjectType();
-			if(ReactiveWrappers.usesReactiveType(resultType)) {
-				resultType = method.getReturnType().getComponentType().getType();
-			}
-
-			boolean isUpdateCountReturnType = ClassUtils.isAssignable(Number.class, resultType);
-			boolean isVoidReturnType = ClassUtils.isAssignable(Void.class, resultType);
-
-			if(!isUpdateCountReturnType && !isVoidReturnType) {
-				throw new InvalidDataAccessApiUsageException(
-						String.format("Update method return type can be void or numeric. Offending method %s.", method));
-			}
 
 			return update.flatMap(it -> updateOps.inCollection(collection) //
 					.matching(query.with(accessor.getSort())) // actually we could do it unsorted

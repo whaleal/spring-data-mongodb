@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2021 the original author or authors.
+ * Copyright 2016-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -50,6 +50,7 @@ import org.springframework.data.repository.core.support.DefaultRepositoryMetadat
  * Unit test for {@link ReactiveMongoQueryMethod}.
  *
  * @author Mark Paluch
+ * @author Christoph Strobl
  */
 public class ReactiveMongoQueryMethodUnitTests {
 
@@ -177,6 +178,25 @@ public class ReactiveMongoQueryMethodUnitTests {
 		Assertions.assertThat(method.getAnnotatedCollation()).isEqualTo("de_AT");
 	}
 
+	@Test // GH-2107
+	public void queryCreationFailsOnInvalidUpdate() throws Exception {
+
+		assertThatExceptionOfType(IllegalStateException.class) //
+				.isThrownBy(() -> queryMethod(InvalidUpdateMethodRepo.class, "findAndUpdateByLastname", String.class).verify()) //
+				.withMessageContaining("Update") //
+				.withMessageContaining("findAndUpdateByLastname");
+	}
+
+	@Test // GH-2107
+	public void queryCreationForUpdateMethodFailsOnInvalidReturnType() throws Exception {
+
+		assertThatExceptionOfType(IllegalStateException.class) //
+				.isThrownBy(() -> queryMethod(InvalidUpdateMethodRepo.class, "findAndIncrementVisitsByFirstname", String.class).verify()) //
+				.withMessageContaining("Update") //
+				.withMessageContaining("numeric") //
+				.withMessageContaining("findAndIncrementVisitsByFirstname");
+	}
+
 	private ReactiveMongoQueryMethod queryMethod(Class<?> repository, String name, Class<?>... parameters)
 			throws Exception {
 
@@ -230,6 +250,15 @@ public class ReactiveMongoQueryMethodUnitTests {
 		List<Person> method();
 
 		Customer methodReturningAnInterface();
+	}
+
+	interface InvalidUpdateMethodRepo extends Repository<Person, Long> {
+
+		@org.springframework.data.mongodb.repository.Update
+		Mono<Void> findAndUpdateByLastname(String lastname);
+
+		@org.springframework.data.mongodb.repository.Update("{ '$inc' : { 'visits' : 1 } }")
+		Mono<Person> findAndIncrementVisitsByFirstname(String firstname);
 	}
 
 	interface Customer {}

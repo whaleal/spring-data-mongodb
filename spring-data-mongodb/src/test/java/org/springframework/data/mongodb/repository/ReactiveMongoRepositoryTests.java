@@ -698,14 +698,6 @@ class ReactiveMongoRepositoryTests {
 	}
 
 	@Test // GH-2107
-	void annotatedUpdateMustNotAllowSingleResult() {
-
-		repository.findAndIncrementVisitsByFirstname("Dave")
-						.as(StepVerifier::create)
-								.verifyError(InvalidDataAccessApiUsageException.class);
-	}
-
-	@Test // GH-2107
 	void allowsToUseComplexTypesInUpdate() {
 
 		Address address = new Address("1007 Mountain Drive", "53540", "Gotham");
@@ -812,9 +804,6 @@ class ReactiveMongoRepositoryTests {
 
 		@org.springframework.data.mongodb.repository.Update("{ '$inc' : { 'visits' : ?#{[1]} } }")
 		Mono<Long> findAndIncrementVisitsUsingSpELByLastname(String lastname, int increment);
-
-		@org.springframework.data.mongodb.repository.Update("{ '$inc' : { 'visits' : 1 } }")
-		Mono<Person> findAndIncrementVisitsByFirstname(String firstname);
 
 		@org.springframework.data.mongodb.repository.Update("{ '$push' : { 'shippingAddresses' : ?1 } }")
 		Mono<Long> findAndPushShippingAddressByEmail(String email, Address address);

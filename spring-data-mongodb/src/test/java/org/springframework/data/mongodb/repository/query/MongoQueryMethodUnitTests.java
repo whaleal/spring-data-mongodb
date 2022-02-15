@@ -236,16 +236,7 @@ public class MongoQueryMethodUnitTests {
 	@Test // GH-2107
 	void detectsModifyingQueryByUpdateType() throws Exception {
 
-		MongoQueryMethod method = queryMethod(PersonRepository.class, "findAndModifyBy", String.class, Update.class);
-
-		assertThat(method.isModifyingQuery()).isTrue();
-	}
-
-	@Test // GH-2107
-	void detectsPagedModifyingQueryByUpdateType() throws Exception {
-
-		MongoQueryMethod method = queryMethod(PersonRepository.class, "findAndModifyBy", String.class, Update.class,
-				Pageable.class);
+		MongoQueryMethod method = queryMethod(PersonRepository.class, "findAndUpdateBy", String.class, Update.class);
 
 		assertThat(method.isModifyingQuery()).isTrue();
 	}
@@ -253,7 +244,7 @@ public class MongoQueryMethodUnitTests {
 	@Test // GH-2107
 	void detectsModifyingQueryByUpdateDefinitionType() throws Exception {
 
-		MongoQueryMethod method = queryMethod(PersonRepository.class, "findAndModifyBy", String.class,
+		MongoQueryMethod method = queryMethod(PersonRepository.class, "findAndUpdateBy", String.class,
 				UpdateDefinition.class);
 
 		assertThat(method.isModifyingQuery()).isTrue();
@@ -262,7 +253,7 @@ public class MongoQueryMethodUnitTests {
 	@Test // GH-2107
 	void detectsModifyingQueryByAggregationUpdateDefinitionType() throws Exception {
 
-		MongoQueryMethod method = queryMethod(PersonRepository.class, "findAndModifyBy", String.class,
+		MongoQueryMethod method = queryMethod(PersonRepository.class, "findAndUpdateBy", String.class,
 				AggregationUpdate.class);
 
 		assertThat(method.isModifyingQuery()).isTrue();
@@ -275,6 +266,16 @@ public class MongoQueryMethodUnitTests {
 				.isThrownBy(() -> queryMethod(InvalidUpdateMethodRepo.class, "findAndUpdateByLastname", String.class).verify()) //
 				.withMessageContaining("Update") //
 				.withMessageContaining("findAndUpdateByLastname");
+	}
+
+	@Test // GH-2107
+	void queryCreationForUpdateMethodFailsOnInvalidReturnType() throws Exception {
+
+		assertThatExceptionOfType(IllegalStateException.class) //
+				.isThrownBy(() -> queryMethod(InvalidUpdateMethodRepo.class, "findAndIncrementVisitsByFirstname", String.class).verify()) //
+				.withMessageContaining("Update") //
+				.withMessageContaining("numeric") //
+				.withMessageContaining("findAndIncrementVisitsByFirstname");
 	}
 
 	private MongoQueryMethod queryMethod(Class<?> repository, String name, Class<?>... parameters) throws Exception {
@@ -332,13 +333,11 @@ public class MongoQueryMethodUnitTests {
 				collation = "de_AT")
 		List<User> findByAggregationWithCollation();
 
-		List<User> findAndModifyBy(String firstname, Update update);
+		void findAndUpdateBy(String firstname, Update update);
 
-		List<User> findAndModifyBy(String firstname, Update update, Pageable page);
+		void findAndUpdateBy(String firstname, UpdateDefinition update);
 
-		List<User> findAndModifyBy(String firstname, UpdateDefinition update);
-
-		List<User> findAndModifyBy(String firstname, AggregationUpdate update);
+		void findAndUpdateBy(String firstname, AggregationUpdate update);
 	}
 
 	interface SampleRepository extends Repository<Contact, Long> {
@@ -357,6 +356,9 @@ public class MongoQueryMethodUnitTests {
 
 		@org.springframework.data.mongodb.repository.Update
 		void findAndUpdateByLastname(String lastname);
+
+		@org.springframework.data.mongodb.repository.Update("{ '$inc' : { 'visits' : 1 } }")
+		Person findAndIncrementVisitsByFirstname(String firstname);
 	}
 
 	interface Customer {

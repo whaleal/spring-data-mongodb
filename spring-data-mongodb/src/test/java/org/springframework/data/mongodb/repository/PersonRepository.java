@@ -435,9 +435,6 @@ public interface PersonRepository extends MongoRepository<Person, String>, Query
 	@Update("{ '$inc' : { 'visits' : ?#{[1]} } }")
 	int findAndIncrementVisitsUsingSpELByLastname(String lastname, int increment);
 
-	@Update("{ '$inc' : { 'visits' : 1 } }")
-	Person findAndIncrementVisitsByFirstname(String firstname);
-
 	@Update("{ '$push' : { 'shippingAddresses' : ?1 } }")
 	int findAndPushShippingAddressByEmail(String email, Address address);
 

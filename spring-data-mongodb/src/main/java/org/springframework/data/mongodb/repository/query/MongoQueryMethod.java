@@ -39,6 +39,7 @@ import org.springframework.data.mongodb.repository.Update;
 import org.springframework.data.projection.ProjectionFactory;
 import org.springframework.data.repository.core.RepositoryMetadata;
 import org.springframework.data.repository.query.QueryMethod;
+import org.springframework.data.repository.util.ReactiveWrappers;
 import org.springframework.data.util.ClassTypeInformation;
 import org.springframework.data.util.Lazy;
 import org.springframework.data.util.TypeInformation;
@@ -443,7 +444,7 @@ public class MongoQueryMethod extends QueryMethod {
 
 		if (isModifyingQuery()) {
 
-			if (isCollectionQuery() || isSliceQuery() || isPageQuery() || isGeoNearQuery()) { //
+			if (isCollectionQuery() || isSliceQuery() || isPageQuery() || isGeoNearQuery() || !isNumericOrVoidReturnValue()) { //
 				throw new IllegalStateException(
 						String.format("Update method may be void or return a numeric value (the number of updated documents)."
 								+ "Offending method: %s", method));
@@ -457,5 +458,18 @@ public class MongoQueryMethod extends QueryMethod {
 				}
 			}
 		}
+	}
+
+	private boolean isNumericOrVoidReturnValue() {
+
+		Class<?> resultType = getReturnedObjectType();
+		if(ReactiveWrappers.usesReactiveType(resultType)) {
+			resultType = getReturnType().getComponentType().getType();
+		}
+
+		boolean isUpdateCountReturnType = ClassUtils.isAssignable(Number.class, resultType);
+		boolean isVoidReturnType = ClassUtils.isAssignable(Void.class, resultType);
+
+		return isUpdateCountReturnType || isVoidReturnType;
 	}
 }
