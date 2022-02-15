@@ -272,7 +272,7 @@ public class MongoQueryMethodUnitTests {
 	void queryCreationFailsOnInvalidUpdate() throws Exception {
 
 		assertThatExceptionOfType(IllegalStateException.class) //
-				.isThrownBy(() -> queryMethod(InvalidUpdateMethodRepo.class, "findAndUpdateByLastname", String.class)) //
+				.isThrownBy(() -> queryMethod(InvalidUpdateMethodRepo.class, "findAndUpdateByLastname", String.class).verify()) //
 				.withMessageContaining("Update") //
 				.withMessageContaining("findAndUpdateByLastname");
 	}

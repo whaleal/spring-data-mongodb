@@ -113,7 +113,7 @@ public class ReactiveMongoQueryMethodUnitTests {
 	@Test // DATAMONGO-1444
 	public void rejectsMonoPageableResult() {
 		assertThatIllegalStateException()
-				.isThrownBy(() -> queryMethod(PersonRepository.class, "findMonoByLastname", String.class, Pageable.class));
+				.isThrownBy(() -> queryMethod(PersonRepository.class, "findMonoByLastname", String.class, Pageable.class).verify());
 	}
 
 	@Test // DATAMONGO-1444
@@ -142,13 +142,13 @@ public class ReactiveMongoQueryMethodUnitTests {
 	@Test // DATAMONGO-1444
 	public void throwsExceptionOnWrappedPage() {
 		assertThatExceptionOfType(InvalidDataAccessApiUsageException.class)
-				.isThrownBy(() -> queryMethod(PersonRepository.class, "findMonoPageByLastname", String.class, Pageable.class));
+				.isThrownBy(() -> queryMethod(PersonRepository.class, "findMonoPageByLastname", String.class, Pageable.class).verify());
 	}
 
 	@Test // DATAMONGO-1444
 	public void throwsExceptionOnWrappedSlice() {
 		assertThatExceptionOfType(InvalidDataAccessApiUsageException.class)
-				.isThrownBy(() -> queryMethod(PersonRepository.class, "findMonoSliceByLastname", String.class, Pageable.class));
+				.isThrownBy(() -> queryMethod(PersonRepository.class, "findMonoSliceByLastname", String.class, Pageable.class).verify());
 	}
 
 	@Test // DATAMONGO-1444

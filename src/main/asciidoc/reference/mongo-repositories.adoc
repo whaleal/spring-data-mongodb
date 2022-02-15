@@ -334,6 +334,11 @@ public interface PersonRepository extends CrudRepository<Person, String> {
 <6> Combine a <<mongodb.repositories.queries.json-based,string based query>> with an update.
 ====
 
+[WARNING]
+====
+Repository updates do not emit persistence nor mapping lifecycle events.
+====
+
 [[mongodb.repositories.queries.delete]]
 === Repository Delete Queries
 

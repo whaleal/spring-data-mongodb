@@ -78,10 +78,10 @@ public interface MongoParameterAccessor extends ParameterAccessor {
 	Object[] getValues();
 
 	/**
-	 * Returns the {@link Update} to be used for findAndUpdate query.
+	 * Returns the {@link Update} to be used for an update execution.
 	 *
-	 * @return
-	 * @since 1.7
+	 * @return {@literal null} if not present.
+	 * @since 3.4
 	 */
 	@Nullable
 	UpdateDefinition getUpdate();

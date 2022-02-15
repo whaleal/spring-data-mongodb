@@ -86,13 +86,6 @@ public class MongoQueryMethod extends QueryMethod {
 		this.method = method;
 		this.mappingContext = mappingContext;
 		this.annotationCache = new ConcurrentReferenceHashMap<>();
-		
-		if(hasAnnotatedUpdate()) {
-			if(!StringUtils.hasText(getUpdateSource().update()) && ObjectUtils.isEmpty(getUpdateSource().pipeline())) {
-				throw new IllegalStateException(String.format("Update method must define either 'Update#update' or 'Update#pipeline' attribute. "
-						+ "Offending method: %s", method));
-			}
-		}
 	}
 
 	/*
@@ -420,14 +413,49 @@ public class MongoQueryMethod extends QueryMethod {
 	}
 
 	private boolean resolveModifyingQueryIndicators() {
-		return hasAnnotatedUpdate() || QueryUtils.indexOfAssignableIndex(UpdateDefinition.class, method.getParameterTypes()) != -1;
+		return hasAnnotatedUpdate()
+				|| QueryUtils.indexOfAssignableIndex(UpdateDefinition.class, method.getParameterTypes()) != -1;
 	}
 
+	/**
+	 * @return {@literal true} if {@link Update} annotation is present.
+	 * @since 3.4
+	 */
 	public boolean hasAnnotatedUpdate() {
 		return lookupUpdateAnnotation().isPresent();
 	}
 
+	/**
+	 * @return the {@link Update} or {@literal null} if not present.
+	 * @since 3.4
+	 */
 	public Update getUpdateSource() {
 		return lookupUpdateAnnotation().get();
+	}
+
+	/**
+	 * Verify the actual {@link QueryMethod} is valid in terms of supported return and parameter types.
+	 *
+	 * @since 3.4
+	 * @throws IllegalStateException
+	 */
+	public void verify() {
+
+		if (isModifyingQuery()) {
+
+			if (isCollectionQuery() || isSliceQuery() || isPageQuery() || isGeoNearQuery()) { //
+				throw new IllegalStateException(
+						String.format("Update method may be void or return a numeric value (the number of updated documents)."
+								+ "Offending method: %s", method));
+			}
+
+			if (hasAnnotatedUpdate()) { // must define either an update or an update pipeline
+				if (!StringUtils.hasText(getUpdateSource().update()) && ObjectUtils.isEmpty(getUpdateSource().pipeline())) {
+					throw new IllegalStateException(
+							String.format("Update method must define either 'Update#update' or 'Update#pipeline' attribute. "
+									+ "Offending method: %s", method));
+				}
+			}
+		}
 	}
 }

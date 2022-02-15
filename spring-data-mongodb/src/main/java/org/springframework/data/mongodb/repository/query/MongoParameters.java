@@ -200,6 +200,15 @@ public class MongoParameters extends Parameters<MongoParameters, MongoParameter>
 		return collationIndex != null ? collationIndex.intValue() : -1;
 	}
 
+	/**
+	 * Returns the index of the {@link UpdateDefinition} parameter or -1 if not present.
+	 * @return -1 if not present.
+	 * @since 3.4
+	 */
+	public int getUpdateIndex() {
+		return updateIndex;
+	}
+
 	/*
 	 * (non-Javadoc)
 	 * @see org.springframework.data.repository.query.Parameters#createFrom(java.util.List)
@@ -280,7 +289,4 @@ public class MongoParameters extends Parameters<MongoParameters, MongoParameter>
 		}
 	}
 
-	public int getUpdateIndex() {
-		return updateIndex;
-	}
 }

@@ -155,6 +155,11 @@ public class ConvertingParameterAccessor implements MongoParameterAccessor {
 		return delegate.getCollation();
 	}
 
+	@Override
+	public UpdateDefinition getUpdate() {
+		return delegate.getUpdate();
+	}
+
 	/**
 	 * Converts the given value with the underlying {@link MongoWriter}.
 	 *
@@ -296,13 +301,5 @@ public class ConvertingParameterAccessor implements MongoParameterAccessor {
 		 * @return
 		 */
 		Object nextConverted(MongoPersistentProperty property);
-	}
-
-	/* (non-Javadoc)
-	 * @see org.springframework.data.mongodb.repository.query.MongoParameterAccessor#getUpdate()
-	 */
-	@Override
-	public UpdateDefinition getUpdate() {
-		return delegate.getUpdate();
 	}
 }
