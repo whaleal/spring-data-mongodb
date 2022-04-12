@@ -21,11 +21,13 @@ import java.util.HashSet;
 import java.util.Set;
 
 import org.bson.UuidRepresentation;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.core.type.filter.AnnotationTypeFilter;
+import org.springframework.data.ManagedTypes;
 import org.springframework.data.convert.CustomConversions;
 import org.springframework.data.mapping.model.CamelCaseAbbreviatingFieldNamingStrategy;
 import org.springframework.data.mapping.model.FieldNamingStrategy;
@@ -89,6 +91,11 @@ public abstract class MongoConfigurationSupport {
 		mappingContext.setAutoIndexCreation(autoIndexCreation());
 
 		return mappingContext;
+	}
+
+	@Bean(name = "mongo.managed-types")
+	public ManagedTypes managedTypes() throws ClassNotFoundException {
+		return ManagedTypes.of(getInitialEntitySet());
 	}
 
 	/**

@@ -19,9 +19,11 @@ import java.lang.annotation.Annotation;
 import java.util.Collection;
 import java.util.Collections;
 
+import org.springframework.beans.factory.generator.AotContributingBeanPostProcessor;
 import org.springframework.beans.factory.support.BeanDefinitionBuilder;
 import org.springframework.core.annotation.AnnotationAttributes;
 import org.springframework.data.config.ParsingUtils;
+import org.springframework.data.mongodb.aot.AotMongoRepositoryPostProcessor;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.data.mongodb.repository.support.MongoRepositoryFactoryBean;
@@ -48,7 +50,7 @@ public class MongoRepositoryConfigurationExtension extends RepositoryConfigurati
 	}
 
 	@Override
-	protected String getModulePrefix() {
+	public String getModulePrefix() {
 		return "mongo";
 	}
 
@@ -57,8 +59,13 @@ public class MongoRepositoryConfigurationExtension extends RepositoryConfigurati
 	}
 
 	@Override
-	protected Collection<Class<? extends Annotation>> getIdentifyingAnnotations() {
+	public Collection<Class<? extends Annotation>> getIdentifyingAnnotations() {
 		return Collections.singleton(Document.class);
+	}
+
+	@Override
+	public Class<? extends AotContributingBeanPostProcessor> getAotPostProcessor() {
+		return AotMongoRepositoryPostProcessor.class;
 	}
 
 	@Override
