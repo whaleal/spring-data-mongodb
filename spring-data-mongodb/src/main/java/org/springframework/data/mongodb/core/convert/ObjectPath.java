@@ -83,10 +83,6 @@ class ObjectPath {
 	 * @return new instance of {@link ObjectPath}.
 	 */
 	ObjectPath push(Object object, MongoPersistentEntity<?> entity, @Nullable Object id) {
-
-		Assert.notNull(object, "Object must not be null!");
-		Assert.notNull(entity, "MongoPersistentEntity must not be null!");
-
 		return new ObjectPath(this, object, id, Lazy.of(entity::getCollection));
 	}
 
@@ -102,9 +98,6 @@ class ObjectPath {
 	@Nullable
 	@Deprecated
 	Object getPathItem(Object id, String collection) {
-
-		Assert.notNull(id, "Id must not be null!");
-		Assert.hasText(collection, "Collection name must not be null!");
 
 		for (ObjectPath current = this; current != null; current = current.parent) {
 
@@ -134,10 +127,6 @@ class ObjectPath {
 	 */
 	@Nullable
 	<T> T getPathItem(Object id, String collection, Class<T> type) {
-
-		Assert.notNull(id, "Id must not be null!");
-		Assert.hasText(collection, "Collection name must not be null!");
-		Assert.notNull(type, "Type must not be null!");
 
 		for (ObjectPath current = this; current != null; current = current.parent) {
 

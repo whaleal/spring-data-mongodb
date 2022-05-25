@@ -143,7 +143,7 @@ public class BindableMongoExpression implements MongoExpression {
 
 	private static String wrapJsonIfNecessary(String json) {
 
-		if (StringUtils.hasText(json) && (json.startsWith("{") && json.endsWith("}"))) {
+		if (StringUtils.hasLength(json) && (json.startsWith("{") && json.endsWith("}"))) {
 			return json;
 		}
 

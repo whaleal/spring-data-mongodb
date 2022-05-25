@@ -184,8 +184,6 @@ public class MappingMongoConverter extends AbstractMongoConverter implements App
 	 */
 	protected ConversionContext getConversionContext(ObjectPath path) {
 
-		Assert.notNull(path, "ObjectPath must not be null");
-
 		return new ConversionContext(this, conversions, path, this::readDocument, this::readCollectionOrArray,
 				this::readMap, this::readDBRef, this::getPotentiallyConvertedSimpleRead);
 	}
@@ -1098,9 +1096,6 @@ public class MappingMongoConverter extends AbstractMongoConverter implements App
 	 */
 	protected Bson createMap(Map<Object, Object> map, MongoPersistentProperty property) {
 
-		Assert.notNull(map, "Given map must not be null!");
-		Assert.notNull(property, "PersistentProperty must not be null!");
-
 		if (!property.isAssociation()) {
 			return writeMapInternal(map, new Document(), property.getTypeInformation());
 		}
@@ -1213,7 +1208,7 @@ public class MappingMongoConverter extends AbstractMongoConverter implements App
 	 */
 	private String prepareMapKey(Object key) {
 
-		Assert.notNull(key, "Map key must not be null!");
+//		Assert.notNull(key, "Map key must not be null!");
 
 		String convertedKey = potentiallyConvertMapKey(key);
 		return potentiallyEscapeMapKey(convertedKey);
@@ -1385,8 +1380,6 @@ public class MappingMongoConverter extends AbstractMongoConverter implements App
 
 	protected DBRef createDBRef(Object target, @Nullable MongoPersistentProperty property) {
 
-		Assert.notNull(target, "Target object must not be null!");
-
 		if (target instanceof DBRef) {
 			return (DBRef) target;
 		}
@@ -1437,8 +1430,6 @@ public class MappingMongoConverter extends AbstractMongoConverter implements App
 	@SuppressWarnings("unchecked")
 	protected Object readCollectionOrArray(ConversionContext context, Collection<?> source,
 			TypeInformation<?> targetType) {
-
-		Assert.notNull(targetType, "Target type must not be null!");
 
 		Class<?> collectionType = targetType.isSubTypeOf(Collection.class) //
 				? targetType.getType() //
@@ -1495,9 +1486,6 @@ public class MappingMongoConverter extends AbstractMongoConverter implements App
 	 * @since 3.2
 	 */
 	protected Map<Object, Object> readMap(ConversionContext context, Bson bson, TypeInformation<?> targetType) {
-
-		Assert.notNull(bson, "Document must not be null!");
-		Assert.notNull(targetType, "TypeInformation must not be null!");
 
 		Class<?> mapType = getTypeMapper().readType(bson, targetType).getType();
 
@@ -1706,8 +1694,6 @@ public class MappingMongoConverter extends AbstractMongoConverter implements App
 			return null;
 		}
 
-		Assert.notNull(type, "TypeInformation must not be null");
-
 		Class<?> rawType = type.getType();
 
 		if (conversions.hasCustomReadTarget(value.getClass(), rawType)) {
@@ -1882,8 +1868,6 @@ public class MappingMongoConverter extends AbstractMongoConverter implements App
 	 */
 	private static boolean isCollectionOfDbRefWhereBulkFetchIsPossible(Iterable<?> source) {
 
-		Assert.notNull(source, "Iterable of DBRefs must not be null!");
-
 		Set<String> collectionsFound = new HashSet<>();
 
 		for (Object dbObjItem : source) {
@@ -1946,10 +1930,6 @@ public class MappingMongoConverter extends AbstractMongoConverter implements App
 		 */
 		MongoDbPropertyValueProvider(ConversionContext context, DocumentAccessor accessor,
 				SpELExpressionEvaluator evaluator) {
-
-			Assert.notNull(context, "ConversionContext must no be null!");
-			Assert.notNull(accessor, "DocumentAccessor must no be null!");
-			Assert.notNull(evaluator, "SpELExpressionEvaluator must not be null!");
 
 			this.context = context;
 			this.accessor = accessor;
@@ -2063,9 +2043,6 @@ public class MappingMongoConverter extends AbstractMongoConverter implements App
 				ParameterValueProvider<MongoPersistentProperty> delegate) {
 
 			super(evaluator, conversionService, delegate);
-
-			Assert.notNull(context, "ConversionContext must no be null!");
-
 			this.context = context;
 		}
 
@@ -2241,9 +2218,6 @@ public class MappingMongoConverter extends AbstractMongoConverter implements App
 		@SuppressWarnings("unchecked")
 		public <S extends Object> S convert(Object source, TypeInformation<? extends S> typeHint) {
 
-			Assert.notNull(source, "Source must not be null");
-			Assert.notNull(typeHint, "TypeInformation must not be null");
-
 			if (conversions.hasCustomReadTarget(source.getClass(), typeHint.getType())) {
 				return (S) elementConverter.convert(source, typeHint);
 			}
@@ -2300,8 +2274,6 @@ public class MappingMongoConverter extends AbstractMongoConverter implements App
 		 * @return a new {@link ConversionContext} with {@link ObjectPath currentPath} applied.
 		 */
 		public ConversionContext withPath(ObjectPath currentPath) {
-
-			Assert.notNull(currentPath, "ObjectPath must not be null");
 
 			return new ConversionContext(sourceConverter, conversions, currentPath, documentConverter, collectionConverter,
 					mapConverter, dbRefConverter, elementConverter);

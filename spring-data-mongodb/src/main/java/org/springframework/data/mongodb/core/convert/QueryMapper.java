@@ -518,8 +518,6 @@ public class QueryMapper {
 	 */
 	protected boolean isAssociationConversionNecessary(Field documentField, @Nullable Object value) {
 
-		Assert.notNull(documentField, "Document field must not be null!");
-
 		if (value == null) {
 			return false;
 		}
@@ -708,8 +706,6 @@ public class QueryMapper {
 	 * @return
 	 */
 	private Entry<String, Object> createMapEntry(String key, @Nullable Object value) {
-
-		Assert.hasText(key, "Key must not be null or empty!");
 		return new AbstractMap.SimpleEntry<>(key, value);
 	}
 
@@ -855,7 +851,6 @@ public class QueryMapper {
 		public Keyword(Bson bson) {
 
 			Map<String, Object> map = BsonUtils.asMap(bson);
-			Assert.isTrue(map.size() == 1, "Can only use a single value Document!");
 
 			Set<Entry<String, Object>> entries = map.entrySet();
 			Entry<String, Object> entry = entries.iterator().next();
@@ -948,8 +943,6 @@ public class QueryMapper {
 		 * @param name must not be {@literal null} or empty.
 		 */
 		public Field(String name) {
-
-			Assert.hasText(name, "Name must not be null!");
 			this.name = name;
 		}
 
@@ -1092,8 +1085,6 @@ public class QueryMapper {
 				@Nullable MongoPersistentProperty property) {
 
 			super(name);
-
-			Assert.notNull(entity, "MongoPersistentEntity must not be null!");
 
 			this.entity = entity;
 			this.mappingContext = context;
@@ -1495,7 +1486,6 @@ public class QueryMapper {
 		 */
 		public AssociationConverter(String name, Association<MongoPersistentProperty> association) {
 
-			Assert.notNull(association, "Association must not be null!");
 			this.property = association.getInverse();
 			this.name = name;
 		}

@@ -413,7 +413,7 @@ public class BsonUtils {
 	 */
 	public static boolean isJsonDocument(@Nullable String value) {
 
-		if(!StringUtils.hasText(value)) {
+		if(!StringUtils.hasLength(value)) {
 			return false;
 		}
 
@@ -429,7 +429,7 @@ public class BsonUtils {
 	 * @since 3.0
 	 */
 	public static boolean isJsonArray(@Nullable String value) {
-		return StringUtils.hasText(value) && (value.startsWith("[") && value.endsWith("]"));
+		return StringUtils.hasLength(value) && (value.startsWith("[") && value.endsWith("]"));
 	}
 
 	/**

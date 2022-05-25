@@ -438,17 +438,16 @@ public class MongoTemplate implements MongoOperations, ApplicationContextAware, 
 	 */
 	@Override
 	public <T> CloseableIterator<T> stream(Query query, Class<T> entityType, String collectionName) {
+
+		Assert.notNull(query, "Query must not be null!");
+		Assert.notNull(entityType, "Entity type must not be null!");
+		Assert.hasText(collectionName, "Collection name must not be null or empty!");
 		return doStream(query, entityType, collectionName, entityType);
 	}
 
 	@SuppressWarnings("ConstantConditions")
 	protected <T> CloseableIterator<T> doStream(Query query, Class<?> entityType, String collectionName,
 			Class<T> returnType) {
-
-		Assert.notNull(query, "Query must not be null!");
-		Assert.notNull(entityType, "Entity type must not be null!");
-		Assert.hasText(collectionName, "Collection name must not be null or empty!");
-		Assert.notNull(returnType, "ReturnType must not be null!");
 
 		return execute(collectionName, (CollectionCallback<CloseableIterator<T>>) collection -> {
 
@@ -537,10 +536,6 @@ public class MongoTemplate implements MongoOperations, ApplicationContextAware, 
 	 */
 	protected void executeQuery(Query query, String collectionName, DocumentCallbackHandler documentCallbackHandler,
 			@Nullable CursorPreparer preparer) {
-
-		Assert.notNull(query, "Query must not be null!");
-		Assert.notNull(collectionName, "CollectionName must not be null!");
-		Assert.notNull(documentCallbackHandler, "DocumentCallbackHandler must not be null!");
 
 		Document queryObject = queryMapper.getMappedObject(query.getQueryObject(), Optional.empty());
 		Document sortObject = query.getSortObject();
@@ -1409,8 +1404,6 @@ public class MongoTemplate implements MongoOperations, ApplicationContextAware, 
 	protected <T> Collection<T> doInsertBatch(String collectionName, Collection<? extends T> batchToSave,
 			MongoWriter<T> writer) {
 
-		Assert.notNull(writer, "MongoWriter must not be null!");
-
 		List<Document> documentList = new ArrayList<>();
 		List<T> initializedBatchToSave = new ArrayList<>(batchToSave.size());
 		for (T uninitialized : batchToSave) {
@@ -1688,10 +1681,6 @@ public class MongoTemplate implements MongoOperations, ApplicationContextAware, 
 	protected UpdateResult doUpdate(String collectionName, Query query, UpdateDefinition update,
 			@Nullable Class<?> entityClass, boolean upsert, boolean multi) {
 
-		Assert.notNull(collectionName, "CollectionName must not be null!");
-		Assert.notNull(query, "Query must not be null!");
-		Assert.notNull(update, "Update must not be null!");
-
 		if (query.isSorted() && LOGGER.isWarnEnabled()) {
 
 			LOGGER.warn(String.format("%s does not support sort ('%s'). Please use findAndModify() instead.",
@@ -1785,6 +1774,9 @@ public class MongoTemplate implements MongoOperations, ApplicationContextAware, 
 
 	@Override
 	public DeleteResult remove(Query query, String collectionName) {
+
+		Assert.notNull(query, "Query must not be null!");
+		Assert.hasText(collectionName, "Collection name must not be null or empty!");
 		return doRemove(collectionName, query, null, true);
 	}
 
@@ -1803,9 +1795,6 @@ public class MongoTemplate implements MongoOperations, ApplicationContextAware, 
 	@SuppressWarnings("ConstantConditions")
 	protected <T> DeleteResult doRemove(String collectionName, Query query, @Nullable Class<T> entityClass,
 			boolean multi) {
-
-		Assert.notNull(query, "Query must not be null!");
-		Assert.hasText(collectionName, "Collection name must not be null or empty!");
 
 		MongoPersistentEntity<?> entity = getPersistentEntity(entityClass);
 
@@ -2196,10 +2185,6 @@ public class MongoTemplate implements MongoOperations, ApplicationContextAware, 
 	protected <O> AggregationResults<O> aggregate(Aggregation aggregation, String collectionName, Class<O> outputType,
 			@Nullable AggregationOperationContext context) {
 
-		Assert.hasText(collectionName, "Collection name must not be null or empty!");
-		Assert.notNull(aggregation, "Aggregation pipeline must not be null!");
-		Assert.notNull(outputType, "Output type must not be null!");
-
 		return doAggregate(aggregation, collectionName, outputType,
 				queryOperations.createAggregation(aggregation, context));
 	}
@@ -2289,11 +2274,6 @@ public class MongoTemplate implements MongoOperations, ApplicationContextAware, 
 	@SuppressWarnings("ConstantConditions")
 	protected <O> CloseableIterator<O> aggregateStream(Aggregation aggregation, String collectionName,
 			Class<O> outputType, @Nullable AggregationOperationContext context) {
-
-		Assert.hasText(collectionName, "Collection name must not be null or empty!");
-		Assert.notNull(aggregation, "Aggregation pipeline must not be null!");
-		Assert.notNull(outputType, "Output type must not be null!");
-		Assert.isTrue(!aggregation.getOptions().isExplain(), "Can't use explain option with streaming!");
 
 		AggregationDefinition aggregationDefinition = queryOperations.createAggregation(aggregation, context);
 
@@ -3104,9 +3084,6 @@ public class MongoTemplate implements MongoOperations, ApplicationContextAware, 
 
 		public FindCallback(Document query, Document fields, @Nullable com.mongodb.client.model.Collation collation) {
 
-			Assert.notNull(query, "Query must not be null!");
-			Assert.notNull(fields, "Fields must not be null!");
-
 			this.query = query;
 			this.fields = fields;
 			this.collation = collation;
@@ -3505,7 +3482,7 @@ public class MongoTemplate implements MongoOperations, ApplicationContextAware, 
 		 */
 		GeoNearResultDocumentCallback(String distanceField, DocumentCallback<T> delegate, Metric metric) {
 
-			Assert.notNull(delegate, "DocumentCallback must not be null!");
+			// Assert.notNull(delegate, "DocumentCallback must not be null!");
 
 			this.distanceField = distanceField;
 			this.delegate = delegate;

@@ -1052,10 +1052,6 @@ public class ReactiveMongoTemplate implements ReactiveMongoOperations, Applicati
 	protected <O> Flux<O> doAggregate(Aggregation aggregation, String collectionName, @Nullable Class<?> inputType,
 			Class<O> outputType) {
 
-		Assert.notNull(aggregation, "Aggregation pipeline must not be null!");
-		Assert.hasText(collectionName, "Collection name must not be null or empty!");
-		Assert.notNull(outputType, "Output type must not be null!");
-
 		AggregationOptions options = aggregation.getOptions();
 		Assert.isTrue(!options.isExplain(), "Cannot use explain option with streaming!");
 
@@ -2079,8 +2075,6 @@ public class ReactiveMongoTemplate implements ReactiveMongoOperations, Applicati
 		if (query == null) {
 			throw new InvalidDataAccessApiUsageException("Query passed in to remove can't be null!");
 		}
-
-		Assert.hasText(collectionName, "Collection name must not be null or empty!");
 
 		MongoPersistentEntity<?> entity = getPersistentEntity(entityClass);
 

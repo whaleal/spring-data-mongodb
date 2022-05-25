@@ -106,17 +106,17 @@ public class MongoDatabaseUtils {
 
 		if (sessionSynchronization == SessionSynchronization.NEVER
 				|| !TransactionSynchronizationManager.isSynchronizationActive()) {
-			return StringUtils.hasText(dbName) ? factory.getMongoDatabase(dbName) : factory.getMongoDatabase();
+			return StringUtils.hasLength(dbName) ? factory.getMongoDatabase(dbName) : factory.getMongoDatabase();
 		}
 
 		ClientSession session = doGetSession(factory, sessionSynchronization);
 
 		if (session == null) {
-			return StringUtils.hasText(dbName) ? factory.getMongoDatabase(dbName) : factory.getMongoDatabase();
+			return StringUtils.hasLength(dbName) ? factory.getMongoDatabase(dbName) : factory.getMongoDatabase();
 		}
 
 		MongoDatabaseFactory factoryToUse = factory.withSession(session);
-		return StringUtils.hasText(dbName) ? factoryToUse.getMongoDatabase(dbName) : factoryToUse.getMongoDatabase();
+		return StringUtils.hasLength(dbName) ? factoryToUse.getMongoDatabase(dbName) : factoryToUse.getMongoDatabase();
 	}
 
 	/**
