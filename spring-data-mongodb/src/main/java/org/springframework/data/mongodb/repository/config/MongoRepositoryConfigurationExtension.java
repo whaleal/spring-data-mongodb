@@ -19,7 +19,7 @@ import java.lang.annotation.Annotation;
 import java.util.Collection;
 import java.util.Collections;
 
-import org.springframework.beans.factory.generator.AotContributingBeanPostProcessor;
+import org.springframework.beans.factory.aot.BeanRegistrationAotProcessor;
 import org.springframework.beans.factory.support.BeanDefinitionBuilder;
 import org.springframework.core.annotation.AnnotationAttributes;
 import org.springframework.data.config.ParsingUtils;
@@ -31,6 +31,7 @@ import org.springframework.data.repository.config.AnnotationRepositoryConfigurat
 import org.springframework.data.repository.config.RepositoryConfigurationExtensionSupport;
 import org.springframework.data.repository.config.XmlRepositoryConfigurationSource;
 import org.springframework.data.repository.core.RepositoryMetadata;
+import org.springframework.lang.NonNull;
 import org.w3c.dom.Element;
 
 /**
@@ -64,7 +65,7 @@ public class MongoRepositoryConfigurationExtension extends RepositoryConfigurati
 	}
 
 	@Override
-	public Class<? extends AotContributingBeanPostProcessor> getAotPostProcessor() {
+	public Class<? extends BeanRegistrationAotProcessor> getRepositoryAotProcessor() {
 		return AotMongoRepositoryPostProcessor.class;
 	}
 

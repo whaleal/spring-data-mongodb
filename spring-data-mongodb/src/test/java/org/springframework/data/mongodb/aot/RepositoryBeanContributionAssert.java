@@ -22,9 +22,7 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 import org.assertj.core.api.AbstractAssert;
-import org.springframework.aot.generator.DefaultCodeContribution;
-import org.springframework.aot.hint.RuntimeHints;
-import org.springframework.data.aot.RepositoryBeanContribution;
+import org.springframework.data.aot.RepositoryRegistrationAotContribution;
 import org.springframework.data.repository.core.RepositoryInformation;
 import org.springframework.data.repository.core.support.RepositoryFragment;
 
@@ -33,13 +31,13 @@ import org.springframework.data.repository.core.support.RepositoryFragment;
  * @since 2022/04
  */
 public class RepositoryBeanContributionAssert
-		extends AbstractAssert<RepositoryBeanContributionAssert, RepositoryBeanContribution>  {
+		extends AbstractAssert<RepositoryBeanContributionAssert, RepositoryRegistrationAotContribution>  {
 
-	public RepositoryBeanContributionAssert(RepositoryBeanContribution actual) {
+	public RepositoryBeanContributionAssert(RepositoryRegistrationAotContribution actual) {
 		super(actual, RepositoryBeanContributionAssert.class);
 	}
 
-	public static RepositoryBeanContributionAssert assertThatContribution(RepositoryBeanContribution actual) {
+	public static RepositoryBeanContributionAssert assertThatContribution(RepositoryRegistrationAotContribution actual) {
 		return new RepositoryBeanContributionAssert(actual);
 	}
 
@@ -66,13 +64,13 @@ public class RepositoryBeanContributionAssert
 		return this;
 	}
 
-	public RepositoryBeanContributionAssert codeContributionSatisfies(Consumer<CodeContributionAssert> consumer) {
-
-		DefaultCodeContribution codeContribution = new DefaultCodeContribution(new RuntimeHints());
-		this.actual.applyTo(codeContribution);
-		consumer.accept(new CodeContributionAssert(codeContribution));
-		return this;
-	}
+	// public RepositoryBeanContributionAssert codeContributionSatisfies(Consumer<CodeContributionAssert> consumer) {
+	//
+	// DefaultCodeContribution codeContribution = new DefaultCodeContribution(new RuntimeHints());
+	// this.actual.applyTo(codeContribution);
+	// consumer.accept(new CodeContributionAssert(codeContribution));
+	// return this;
+	// }
 
 	private RepositoryInformation getRepositoryInformation() {
 		assertThat(this.actual).describedAs("No repository interface found on null bean contribution.").isNotNull();

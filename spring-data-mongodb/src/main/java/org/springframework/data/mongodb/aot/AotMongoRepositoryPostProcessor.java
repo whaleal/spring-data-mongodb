@@ -22,13 +22,15 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-import org.springframework.aot.generator.CodeContribution;
+import org.springframework.aot.generate.GenerationContext;
+import org.springframework.aot.hint.TypeReference;
 import org.springframework.core.ResolvableType;
 import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.core.annotation.MergedAnnotations;
 import org.springframework.data.annotation.Reference;
-import org.springframework.data.aot.AotContributingRepositoryBeanPostProcessor;
 import org.springframework.data.aot.AotRepositoryContext;
+import org.springframework.data.aot.RepositoryRegistrationAotProcessor;
+import org.springframework.data.aot.TypeContributor;
 import org.springframework.data.aot.TypeUtils;
 import org.springframework.data.mongodb.core.mapping.DBRef;
 import org.springframework.data.mongodb.core.mapping.DocumentReference;
@@ -36,26 +38,23 @@ import org.springframework.data.mongodb.core.mapping.MongoSimpleTypes;
 
 /**
  * @author Christoph Strobl
- * @since 2022/04
  */
-public class AotMongoRepositoryPostProcessor extends AotContributingRepositoryBeanPostProcessor {
+public class AotMongoRepositoryPostProcessor extends RepositoryRegistrationAotProcessor {
+
+	private boolean generalLazyLoadingProxyContributed = false;
 
 	@Override
-	protected void contribute(AotRepositoryContext ctx, CodeContribution contribution) {
-
+	protected void contribute(AotRepositoryContext repositoryContext, GenerationContext generationContext) {
 		// do some custom type registration here
-		super.contribute(ctx, contribution);
+		super.contribute(repositoryContext, generationContext);
 
-		ctx.getResolvedTypes().stream().filter(it -> !isSimpleType(it)).forEach(type -> {
-			contributeType(type, contribution);
-			registerLazyLoadingProxyIfNeeded(type, contribution);
+		repositoryContext.getResolvedTypes().stream().filter(it -> !isSimpleType(it)).forEach(type -> {
+			TypeContributor.contribute(type, it -> true, generationContext);
+			registerLazyLoadingProxyIfNeeded(type, generationContext);
 		});
-
-		// go and find the proxies
-		// contributeType();
 	}
 
-	void registerLazyLoadingProxyIfNeeded(Class<?> type, CodeContribution contribution) {
+	void registerLazyLoadingProxyIfNeeded(Class<?> type, GenerationContext generationContext) {
 
 		Set<Field> refFields = getFieldsWithAnnotationPresent(type, Reference.class);
 		if (refFields.isEmpty()) {
@@ -65,6 +64,16 @@ public class AotMongoRepositoryPostProcessor extends AotContributingRepositoryBe
 		refFields.stream() //
 				.filter(AotMongoRepositoryPostProcessor::isLazyLoading) //
 				.forEach(field -> {
+
+					if (!generalLazyLoadingProxyContributed) {
+						generationContext.getRuntimeHints().proxies().registerJdkProxy(
+								TypeReference.of(org.springframework.data.mongodb.core.convert.LazyLoadingProxy.class),
+								TypeReference.of(org.springframework.aop.SpringProxy.class),
+								TypeReference.of(org.springframework.aop.framework.Advised.class),
+								TypeReference.of(org.springframework.core.DecoratingProxy.class));
+						generalLazyLoadingProxyContributed=true;
+					}
+
 					if (field.getType().isInterface()) {
 
 						List<Class<?>> interfaces = new ArrayList<>(
@@ -75,10 +84,10 @@ public class AotMongoRepositoryPostProcessor extends AotContributingRepositoryBe
 						interfaces.add(org.springframework.aop.framework.Advised.class);
 						interfaces.add(org.springframework.core.DecoratingProxy.class);
 
-						contribution.runtimeHints().proxies().registerJdkProxy(interfaces.toArray(Class[]::new));
+						generationContext.getRuntimeHints().proxies().registerJdkProxy(interfaces.toArray(Class[]::new));
 					} else {
 
-						contribution.runtimeHints().proxies().registerClassProxy(field.getType(), builder -> {
+						generationContext.getRuntimeHints().proxies().registerClassProxy(field.getType(), builder -> {
 							builder.proxiedInterfaces(org.springframework.data.mongodb.core.convert.LazyLoadingProxy.class);
 						});
 					}
